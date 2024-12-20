@@ -1,0 +1,367 @@
+DIGEST e13556b0b1656db0925d5c4b1c3e7fd2
+FPL.BuiltInNat
+R15:31 Coq.ZArith.ZArith <> <> lib
+R253:255 Coq.Init.Datatypes <> nat ind
+mod 873:879 <> NatDemo
+ind 929:931 NatDemo nat
+constr 938:938 NatDemo O
+constr 947:947 NatDemo S
+R941:943 PL.BuiltInNat <> nat:1 ind
+R953:955 PL.BuiltInNat <> nat:1 ind
+binder 950:950 <> n:3
+R959:961 PL.BuiltInNat <> nat:1 ind
+def 1103:1105 NatDemo add
+R1113:1115 PL.BuiltInNat NatDemo nat ind
+binder 1108:1108 <> n:4
+binder 1110:1110 <> m:5
+R1119:1121 PL.BuiltInNat NatDemo nat ind
+R1134:1134 PL.BuiltInNat <> n:4 var
+R1145:1145 PL.BuiltInNat NatDemo O constr
+R1150:1150 PL.BuiltInNat <> m:5 var
+R1156:1156 PL.BuiltInNat NatDemo S constr
+R1164:1164 PL.BuiltInNat NatDemo S constr
+R1167:1169 PL.BuiltInNat <> add:6 def
+R1174:1174 PL.BuiltInNat <> m:5 var
+prf 1243:1250 NatDemo add_comm
+binder 1262:1262 <> n:8
+binder 1264:1264 <> m:9
+R1274:1276 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1267:1269 PL.BuiltInNat NatDemo add def
+R1271:1271 PL.BuiltInNat <> n:8 var
+R1273:1273 PL.BuiltInNat <> m:9 var
+R1277:1279 PL.BuiltInNat NatDemo add def
+R1281:1281 PL.BuiltInNat <> m:9 var
+R1283:1283 PL.BuiltInNat <> n:8 var
+prf 1536:1542 NatDemo add_0_r
+binder 1552:1552 <> n:10
+R1562:1564 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1555:1557 PL.BuiltInNat NatDemo add def
+R1559:1559 PL.BuiltInNat <> n:10 var
+R1561:1561 PL.BuiltInNat NatDemo O constr
+R1565:1565 PL.BuiltInNat <> n:10 var
+prf 1746:1753 NatDemo add_comm
+binder 1763:1763 <> n:11
+binder 1765:1765 <> m:12
+R1777:1779 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1770:1772 PL.BuiltInNat NatDemo add def
+R1774:1774 PL.BuiltInNat <> n:11 var
+R1776:1776 PL.BuiltInNat <> m:12 var
+R1780:1782 PL.BuiltInNat NatDemo add def
+R1784:1784 PL.BuiltInNat <> m:12 var
+R1786:1786 PL.BuiltInNat <> n:11 var
+R1840:1846 PL.BuiltInNat NatDemo add_0_r thm
+R1840:1846 PL.BuiltInNat NatDemo add_0_r thm
+R1840:1846 PL.BuiltInNat NatDemo add_0_r thm
+prf 2215:2224 NatDemo add_succ_r
+binder 2234:2234 <> n:13
+binder 2236:2236 <> m:14
+R2252:2254 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2241:2243 PL.BuiltInNat NatDemo add def
+R2245:2245 PL.BuiltInNat <> n:13 var
+R2248:2248 PL.BuiltInNat NatDemo S constr
+R2250:2250 PL.BuiltInNat <> m:14 var
+R2255:2255 PL.BuiltInNat NatDemo S constr
+R2258:2260 PL.BuiltInNat NatDemo add def
+R2262:2262 PL.BuiltInNat <> n:13 var
+R2264:2264 PL.BuiltInNat <> m:14 var
+prf 2449:2456 NatDemo add_comm
+binder 2466:2466 <> n:15
+binder 2468:2468 <> m:16
+R2480:2482 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2473:2475 PL.BuiltInNat NatDemo add def
+R2477:2477 PL.BuiltInNat <> n:15 var
+R2479:2479 PL.BuiltInNat <> m:16 var
+R2483:2485 PL.BuiltInNat NatDemo add def
+R2487:2487 PL.BuiltInNat <> m:16 var
+R2489:2489 PL.BuiltInNat <> n:15 var
+R2543:2549 PL.BuiltInNat NatDemo add_0_r thm
+R2543:2549 PL.BuiltInNat NatDemo add_0_r thm
+R2543:2549 PL.BuiltInNat NatDemo add_0_r thm
+R2581:2590 PL.BuiltInNat NatDemo add_succ_r thm
+R2581:2590 PL.BuiltInNat NatDemo add_succ_r thm
+R2581:2590 PL.BuiltInNat NatDemo add_succ_r thm
+def 2838:2840 NatDemo mul
+R2848:2850 PL.BuiltInNat NatDemo nat ind
+binder 2843:2843 <> n:17
+binder 2845:2845 <> m:18
+R2854:2856 PL.BuiltInNat NatDemo nat ind
+R2869:2869 PL.BuiltInNat <> n:17 var
+R2880:2880 PL.BuiltInNat NatDemo O constr
+R2885:2885 PL.BuiltInNat NatDemo O constr
+R2891:2891 PL.BuiltInNat NatDemo S constr
+R2898:2900 PL.BuiltInNat NatDemo add def
+R2902:2902 PL.BuiltInNat <> m:18 var
+R2905:2907 PL.BuiltInNat <> mul:19 def
+R2911:2911 PL.BuiltInNat <> m:18 var
+prf 2989:2997 NatDemo add_assoc
+binder 3009:3009 <> n:21
+binder 3011:3011 <> m:22
+binder 3013:3013 <> p:23
+R3031:3033 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3016:3018 PL.BuiltInNat NatDemo add def
+R3020:3020 PL.BuiltInNat <> n:21 var
+R3023:3025 PL.BuiltInNat NatDemo add def
+R3027:3027 PL.BuiltInNat <> m:22 var
+R3029:3029 PL.BuiltInNat <> p:23 var
+R3034:3036 PL.BuiltInNat NatDemo add def
+R3039:3041 PL.BuiltInNat NatDemo add def
+R3043:3043 PL.BuiltInNat <> n:21 var
+R3045:3045 PL.BuiltInNat <> m:22 var
+R3048:3048 PL.BuiltInNat <> p:23 var
+prf 3170:3181 NatDemo add_cancel_l
+binder 3193:3193 <> n:24
+binder 3195:3195 <> m:25
+binder 3197:3197 <> p:26
+R3217:3221 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3207:3209 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3200:3202 PL.BuiltInNat NatDemo add def
+R3204:3204 PL.BuiltInNat <> p:26 var
+R3206:3206 PL.BuiltInNat <> n:24 var
+R3210:3212 PL.BuiltInNat NatDemo add def
+R3214:3214 PL.BuiltInNat <> p:26 var
+R3216:3216 PL.BuiltInNat <> m:25 var
+R3223:3225 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3222:3222 PL.BuiltInNat <> n:24 var
+R3226:3226 PL.BuiltInNat <> m:25 var
+prf 3427:3438 NatDemo add_cancel_r
+binder 3450:3450 <> n:27
+binder 3452:3452 <> m:28
+binder 3454:3454 <> p:29
+R3474:3478 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3464:3466 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3457:3459 PL.BuiltInNat NatDemo add def
+R3461:3461 PL.BuiltInNat <> n:27 var
+R3463:3463 PL.BuiltInNat <> p:29 var
+R3467:3469 PL.BuiltInNat NatDemo add def
+R3471:3471 PL.BuiltInNat <> m:28 var
+R3473:3473 PL.BuiltInNat <> p:29 var
+R3480:3482 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3479:3479 PL.BuiltInNat <> n:27 var
+R3483:3483 PL.BuiltInNat <> m:28 var
+R3520:3527 PL.BuiltInNat NatDemo add_comm thm
+R3536:3543 PL.BuiltInNat NatDemo add_comm thm
+R3520:3527 PL.BuiltInNat NatDemo add_comm thm
+R3520:3527 PL.BuiltInNat NatDemo add_comm thm
+R3536:3543 PL.BuiltInNat NatDemo add_comm thm
+R3536:3543 PL.BuiltInNat NatDemo add_comm thm
+R3559:3570 PL.BuiltInNat NatDemo add_cancel_l thm
+R3559:3570 PL.BuiltInNat NatDemo add_cancel_l thm
+prf 3585:3591 NatDemo mul_0_r
+binder 3601:3601 <> n:30
+R3611:3613 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3604:3606 PL.BuiltInNat NatDemo mul def
+R3608:3608 PL.BuiltInNat <> n:30 var
+R3610:3610 PL.BuiltInNat NatDemo O constr
+R3614:3614 PL.BuiltInNat NatDemo O constr
+prf 3700:3709 NatDemo mul_succ_r
+binder 3721:3721 <> n:31
+binder 3723:3723 <> m:32
+R3737:3739 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3726:3728 PL.BuiltInNat NatDemo mul def
+R3730:3730 PL.BuiltInNat <> n:31 var
+R3733:3733 PL.BuiltInNat NatDemo S constr
+R3735:3735 PL.BuiltInNat <> m:32 var
+R3740:3742 PL.BuiltInNat NatDemo add def
+R3745:3747 PL.BuiltInNat NatDemo mul def
+R3749:3749 PL.BuiltInNat <> n:31 var
+R3751:3751 PL.BuiltInNat <> m:32 var
+R3754:3754 PL.BuiltInNat <> n:31 var
+R3832:3841 PL.BuiltInNat NatDemo add_succ_r thm
+R3832:3841 PL.BuiltInNat NatDemo add_succ_r thm
+R3832:3841 PL.BuiltInNat NatDemo add_succ_r thm
+R3859:3867 PL.BuiltInNat NatDemo add_assoc thm
+R3859:3867 PL.BuiltInNat NatDemo add_assoc thm
+R3859:3867 PL.BuiltInNat NatDemo add_assoc thm
+prf 3901:3908 NatDemo mul_comm
+binder 3920:3920 <> n:33
+binder 3922:3922 <> m:34
+R3932:3934 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3925:3927 PL.BuiltInNat NatDemo mul def
+R3929:3929 PL.BuiltInNat <> n:33 var
+R3931:3931 PL.BuiltInNat <> m:34 var
+R3935:3937 PL.BuiltInNat NatDemo mul def
+R3939:3939 PL.BuiltInNat <> m:34 var
+R3941:3941 PL.BuiltInNat <> n:33 var
+R3997:4003 PL.BuiltInNat NatDemo mul_0_r thm
+R3997:4003 PL.BuiltInNat NatDemo mul_0_r thm
+R3997:4003 PL.BuiltInNat NatDemo mul_0_r thm
+R4035:4044 PL.BuiltInNat NatDemo mul_succ_r thm
+R4035:4044 PL.BuiltInNat NatDemo mul_succ_r thm
+R4035:4044 PL.BuiltInNat NatDemo mul_succ_r thm
+R4064:4071 PL.BuiltInNat NatDemo add_comm thm
+R4064:4071 PL.BuiltInNat NatDemo add_comm thm
+R4064:4071 PL.BuiltInNat NatDemo add_comm thm
+prf 4105:4119 NatDemo mul_add_distr_r
+binder 4131:4131 <> n:35
+binder 4133:4133 <> m:36
+binder 4135:4135 <> p:37
+R4153:4155 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4138:4140 PL.BuiltInNat NatDemo mul def
+R4143:4145 PL.BuiltInNat NatDemo add def
+R4147:4147 PL.BuiltInNat <> n:35 var
+R4149:4149 PL.BuiltInNat <> m:36 var
+R4152:4152 PL.BuiltInNat <> p:37 var
+R4156:4158 PL.BuiltInNat NatDemo add def
+R4161:4163 PL.BuiltInNat NatDemo mul def
+R4165:4165 PL.BuiltInNat <> n:35 var
+R4167:4167 PL.BuiltInNat <> p:37 var
+R4171:4173 PL.BuiltInNat NatDemo mul def
+R4175:4175 PL.BuiltInNat <> m:36 var
+R4177:4177 PL.BuiltInNat <> p:37 var
+R4256:4264 PL.BuiltInNat NatDemo add_assoc thm
+R4256:4264 PL.BuiltInNat NatDemo add_assoc thm
+R4256:4264 PL.BuiltInNat NatDemo add_assoc thm
+prf 4303:4317 NatDemo mul_add_distr_l
+binder 4329:4329 <> n:38
+binder 4331:4331 <> m:39
+binder 4333:4333 <> p:40
+R4351:4353 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4336:4338 PL.BuiltInNat NatDemo mul def
+R4340:4340 PL.BuiltInNat <> n:38 var
+R4343:4345 PL.BuiltInNat NatDemo add def
+R4347:4347 PL.BuiltInNat <> m:39 var
+R4349:4349 PL.BuiltInNat <> p:40 var
+R4354:4356 PL.BuiltInNat NatDemo add def
+R4359:4361 PL.BuiltInNat NatDemo mul def
+R4363:4363 PL.BuiltInNat <> n:38 var
+R4365:4365 PL.BuiltInNat <> m:39 var
+R4369:4371 PL.BuiltInNat NatDemo mul def
+R4373:4373 PL.BuiltInNat <> n:38 var
+R4375:4375 PL.BuiltInNat <> p:40 var
+R4413:4420 PL.BuiltInNat NatDemo mul_comm thm
+R4425:4427 PL.BuiltInNat NatDemo add def
+R4437:4444 PL.BuiltInNat NatDemo mul_comm thm
+R4453:4460 PL.BuiltInNat NatDemo mul_comm thm
+R4413:4420 PL.BuiltInNat NatDemo mul_comm thm
+R4425:4427 PL.BuiltInNat NatDemo add def
+R4413:4420 PL.BuiltInNat NatDemo mul_comm thm
+R4425:4427 PL.BuiltInNat NatDemo add def
+R4437:4444 PL.BuiltInNat NatDemo mul_comm thm
+R4437:4444 PL.BuiltInNat NatDemo mul_comm thm
+R4453:4460 PL.BuiltInNat NatDemo mul_comm thm
+R4453:4460 PL.BuiltInNat NatDemo mul_comm thm
+R4476:4490 PL.BuiltInNat NatDemo mul_add_distr_r thm
+R4476:4490 PL.BuiltInNat NatDemo mul_add_distr_r thm
+prf 4507:4515 NatDemo mul_assoc
+binder 4527:4527 <> n:41
+binder 4529:4529 <> m:42
+binder 4531:4531 <> p:43
+R4549:4551 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4534:4536 PL.BuiltInNat NatDemo mul def
+R4538:4538 PL.BuiltInNat <> n:41 var
+R4541:4543 PL.BuiltInNat NatDemo mul def
+R4545:4545 PL.BuiltInNat <> m:42 var
+R4547:4547 PL.BuiltInNat <> p:43 var
+R4552:4554 PL.BuiltInNat NatDemo mul def
+R4557:4559 PL.BuiltInNat NatDemo mul def
+R4561:4561 PL.BuiltInNat <> n:41 var
+R4563:4563 PL.BuiltInNat <> m:42 var
+R4566:4566 PL.BuiltInNat <> p:43 var
+R4646:4660 PL.BuiltInNat NatDemo mul_add_distr_r thm
+R4646:4660 PL.BuiltInNat NatDemo mul_add_distr_r thm
+R4646:4660 PL.BuiltInNat NatDemo mul_add_distr_r thm
+prf 4694:4700 NatDemo mul_1_l
+binder 4710:4710 <> n:44
+R4724:4726 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4713:4715 PL.BuiltInNat NatDemo mul def
+R4718:4718 PL.BuiltInNat NatDemo S constr
+R4720:4720 PL.BuiltInNat NatDemo O constr
+R4723:4723 PL.BuiltInNat <> n:44 var
+R4727:4727 PL.BuiltInNat <> n:44 var
+R4758:4764 PL.BuiltInNat NatDemo add_0_r thm
+R4758:4764 PL.BuiltInNat NatDemo add_0_r thm
+prf 4781:4787 NatDemo mul_1_r
+binder 4797:4797 <> n:45
+R4811:4813 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4800:4802 PL.BuiltInNat NatDemo mul def
+R4804:4804 PL.BuiltInNat <> n:45 var
+R4807:4807 PL.BuiltInNat NatDemo S constr
+R4809:4809 PL.BuiltInNat NatDemo O constr
+R4814:4814 PL.BuiltInNat <> n:45 var
+R4840:4847 PL.BuiltInNat NatDemo mul_comm thm
+R4850:4856 PL.BuiltInNat NatDemo mul_1_l thm
+R4840:4847 PL.BuiltInNat NatDemo mul_comm thm
+R4840:4847 PL.BuiltInNat NatDemo mul_comm thm
+R4850:4856 PL.BuiltInNat NatDemo mul_1_l thm
+R4850:4856 PL.BuiltInNat NatDemo mul_1_l thm
+R4882:4888 PL.BuiltInNat NatDemo <> mod
+R5005:5016 Coq.Arith.PeanoNat Nat add_comm thm
+R5025:5037 Coq.Arith.PeanoNat Nat add_assoc thm
+R5046:5061 Coq.Arith.PeanoNat Nat add_cancel_l thm
+R5070:5085 Coq.Arith.PeanoNat Nat add_cancel_r thm
+R5094:5105 Coq.Arith.PeanoNat Nat mul_comm thm
+R5114:5132 Coq.Arith.PeanoNat Nat mul_add_distr_r thm
+R5141:5159 Coq.Arith.PeanoNat Nat mul_add_distr_l thm
+R5168:5180 Coq.Arith.PeanoNat Nat mul_assoc thm
+R5189:5199 Coq.Arith.PeanoNat Nat mul_1_l thm
+R5208:5218 Coq.Arith.PeanoNat Nat mul_1_r thm
+prf 5870:5875 <> iter_S
+binder 5888:5888 <> A:46
+R5901:5903 Coq.Init.Datatypes <> nat ind
+binder 5898:5898 <> n:47
+R5911:5914 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5910:5910 PL.BuiltInNat <> A:46 var
+R5915:5915 PL.BuiltInNat <> A:46 var
+binder 5907:5907 <> f:48
+R5922:5922 PL.BuiltInNat <> A:46 var
+binder 5919:5919 <> x:49
+R5948:5950 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5930:5937 Coq.Arith.PeanoNat Nat iter def
+R5944:5944 PL.BuiltInNat <> f:48 var
+R5946:5946 PL.BuiltInNat <> x:49 var
+R5941:5941 PL.BuiltInNat <> f:48 var
+R5939:5939 PL.BuiltInNat <> n:47 var
+R5951:5958 Coq.Arith.PeanoNat Nat iter def
+R5968:5968 PL.BuiltInNat <> x:49 var
+R5966:5966 PL.BuiltInNat <> f:48 var
+R5961:5961 Coq.Init.Datatypes <> S constr
+R5963:5963 PL.BuiltInNat <> n:47 var
+prf 6286:6293 <> iter_add
+binder 6306:6306 <> A:50
+R6321:6323 Coq.Init.Datatypes <> nat ind
+binder 6316:6316 <> n:51
+binder 6318:6318 <> m:52
+R6331:6334 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6330:6330 PL.BuiltInNat <> A:50 var
+R6335:6335 PL.BuiltInNat <> A:50 var
+binder 6327:6327 <> f:53
+R6342:6342 PL.BuiltInNat <> A:50 var
+binder 6339:6339 <> x:54
+R6370:6372 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6350:6357 Coq.Arith.PeanoNat Nat iter def
+R6369:6369 PL.BuiltInNat <> x:54 var
+R6367:6367 PL.BuiltInNat <> f:53 var
+R6361:6363 Coq.Init.Peano <> ::nat_scope:x_'+'_x not
+R6360:6360 PL.BuiltInNat <> n:51 var
+R6364:6364 PL.BuiltInNat <> m:52 var
+R6373:6380 Coq.Arith.PeanoNat Nat iter def
+R6387:6394 Coq.Arith.PeanoNat Nat iter def
+R6400:6400 PL.BuiltInNat <> x:54 var
+R6398:6398 PL.BuiltInNat <> f:53 var
+R6396:6396 PL.BuiltInNat <> m:52 var
+R6384:6384 PL.BuiltInNat <> f:53 var
+R6382:6382 PL.BuiltInNat <> n:51 var
+prf 6605:6612 <> iter_mul
+binder 6625:6625 <> A:55
+R6640:6642 Coq.Init.Datatypes <> nat ind
+binder 6635:6635 <> n:56
+binder 6637:6637 <> m:57
+R6650:6653 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6649:6649 PL.BuiltInNat <> A:55 var
+R6654:6654 PL.BuiltInNat <> A:55 var
+binder 6646:6646 <> f:58
+R6661:6661 PL.BuiltInNat <> A:55 var
+binder 6658:6658 <> x:59
+R6689:6691 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6669:6676 Coq.Arith.PeanoNat Nat iter def
+R6688:6688 PL.BuiltInNat <> x:59 var
+R6686:6686 PL.BuiltInNat <> f:58 var
+R6680:6682 Coq.Init.Peano <> ::nat_scope:x_'*'_x not
+R6679:6679 PL.BuiltInNat <> n:56 var
+R6683:6683 PL.BuiltInNat <> m:57 var
+R6692:6699 Coq.Arith.PeanoNat Nat iter def
+R6718:6718 PL.BuiltInNat <> x:59 var
+R6704:6711 Coq.Arith.PeanoNat Nat iter def
+R6715:6715 PL.BuiltInNat <> f:58 var
+R6713:6713 PL.BuiltInNat <> m:57 var
+R6701:6701 PL.BuiltInNat <> n:56 var
