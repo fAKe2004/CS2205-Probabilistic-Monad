@@ -9,6 +9,9 @@ Import SetsNotation.
 Local Open Scope sets.
 Local Open Scope list.
 
+(* Adds on *)
+Require Import Classical.
+
 Theorem equiv_in_domain:
   forall {A B: Type} (f: A -> B) (R: B -> B -> Prop),
     Equivalence R ->
@@ -155,6 +158,34 @@ Definition equiv {A: Type} (d1 d2: Distr A): Prop :=
   (forall a: A, d1.(prob) a = d2.(prob) a) /\
   Permutation d1.(pset) d2.(pset).
 
+(*
+  Description:
+    whether exists an implication relation from d1 to d2.
+    i.e.,
+    Can d1 be partitioned into disjoint ∪ E_i, 
+    and d2 be partitioned into disjoint ∪ F_i,
+
+    so that for all i:
+      E_i -> F_i.
+      /\
+      Prob[E_i] = Prob[F_i]
+
+    (here 'imply' means forall p ∈ E_i, q ∈ F_i, p->q).
+
+  Argument:
+     d1 d2 : Distr Prop.
+
+  Note:
+    L is a list pair(list Prop, list Prop)
+      concat (map fst L) -> a partition of d1's outcomes (Prop).
+      concat (map snd L) -> a partition of d2's outcomes (Prop).
+    
+  for (event1, event2) ∈ L 
+    forall Prop P1 ∈ event1, Prop P2 ∈ event2.
+      P1 -> P2.
+    /\
+    Prob[event1] = Prob[event2]
+*)
 Definition imply_event (d1 d2: Distr Prop): Prop :=
   exists L: list (list Prop * list Prop),
     Permutation d1.(pset) (concat (map fst L)) /\
@@ -163,7 +194,7 @@ Definition imply_event (d1 d2: Distr Prop): Prop :=
        In (l1, l2) L ->
        forall P1, In P1 l1 ->
        forall P2, In P2 l2 ->
-       In P2 l2 ->
+       In P2 l2 -> (* duplicated line? *)
        (P1 -> P2)) /\
     (forall l1 l2,
        In (l1, l2) L ->
@@ -201,11 +232,12 @@ Record sum_distr {A: Type}
               sum (map (fun '(r, d) => r * d.(prob) a) ds)%R;
 }.
 
+(* check if r = Prob[true Prop in d.(pset)] *)
 Definition compute_pr (d: Distr Prop) (r: R): Prop :=
   exists (l: list Prop),
     (forall P, In P l <-> In P d.(pset) /\ P) /\
     sum_prob l d.(prob) = r.
-
+  
 End ProbDistr.
 
 Notation "'Distr'" := (ProbDistr.Distr) (at level 0).
@@ -216,23 +248,219 @@ Notation "x '.(legal_nonneg)'" := (ProbDistr.legal_nonneg _ x) (at level 1).
 Notation "x '.(legal_pset_valid)'" := (ProbDistr.legal_pset_valid _ x) (at level 1).
 Notation "x '.(legal_prob_1)'" := (ProbDistr.legal_prob_1 _ x) (at level 1).
 
+
+
+(*
+  Name: 
+    filter_true_prop_list_exists
+
+  Property:
+    Auxiliary Theorm
+  
+  Description:
+    For a list of Prop: L,
+    A list of Prop: l exists, s.t. 
+      l = filter (P is true) L.
+      i.e., l contains exactly all true Props in L.
+
+  Note: 
+    direct filter is not feasible, so a existential statement is necessary.
+*)
+Theorem filter_true_prop_list_exists:
+  forall L : list Prop, exists l : list Prop, (forall P, In P l <-> In P L /\ P).
+Proof.
+  induction L as [| Ph tl].
+  - exists [].
+    intros.
+    simpl.
+    tauto.
+  - destruct IHtl as [l0 H0].
+    destruct (classic Ph). (*cases analysis on Ph is true or false*)
+    + exists (Ph::l0).
+      intros.
+      split; intros; specialize (H0 P) as H0.
+      *  (* In P Ph::l0 -> *)
+        destruct H1.
+        ++ subst P. (* P = Ph*)
+          split; [left; tauto | tauto].
+        ++ (* P != Ph, thus P in l0 *)  
+          apply H0 in H1.
+          split; [right; tauto | tauto].
+      * (* In P (Ph :: tl) /\ P -> *)    
+        destruct H1.
+        destruct H1.
+        ++ subst P.
+          left.
+          reflexivity.
+        ++ right.
+          apply H0.
+          tauto.
+    + exists l0. (* Ph::tl, Ph is false*)
+      intros.
+      split; intros; specialize (H0 P) as H0.
+      * (* In P l0 -> In P (Ph :: tl) /\ P *)
+        apply H0 in H1.
+        split; [right; tauto | tauto].
+      * (* In P (Ph :: tl) /\ P -> In P l0 *)
+        assert (In P tl) as H_tl.
+        {
+          destruct H1.
+          destruct H1.
+          + subst P. contradiction.
+          + exact H1.
+        }
+        apply H0.
+        tauto.
+Qed.
+
+(* 
+  Description:
+    for any distribution on Props: d,
+      Prob[true Props in d] exists (witness r).
+*)
+
 Theorem ProbDistr_compute_pr_exists: forall d, exists r,
   ProbDistr.compute_pr d r.
+(* Admitted. * Level 1 *)
 Proof.
-Admitted. (** Level 1 *)
+  intros.
+  unfold ProbDistr.compute_pr.
+  specialize (filter_true_prop_list_exists d.(pset)) as H_true_list.
+  destruct H_true_list as [l_true_list H_true_list].
+  exists (sum_prob l_true_list d.(prob)).
+  exists l_true_list.
+  intros.
+  tauto.
+Qed.
 
+(*
+  Description:
+    Reflexivity of imply_event.
+*)
 #[export] Instance ProbDistr_imply_event_refl:
   Reflexive ProbDistr.imply_event.
-Admitted. (** Level 1 *)
+(* Admitted. * Level 1 *)
+Proof.
+  unfold Reflexive.
+  intros.
+  unfold ProbDistr.imply_event.
+  exists (map (fun p => ([p], [p])) x.(pset)).
+  assert (forall (A : Type) (l : list A),
+  Permutation l (concat (map (fun x => [x]) l))) as H_perm_concat_map_singleton.
+  {
+    intros A l.
+    induction l as [| h tl HIHl]; simpl.
+    - reflexivity.
+    - rewrite <- HIHl.
+      reflexivity.
+  }
+  repeat split; simpl; 
+  [
+    rewrite map_map; simpl; apply H_perm_concat_map_singleton
+    |rewrite map_map; simpl; apply H_perm_concat_map_singleton 
+    | 
+    |
+  ].
+  + 
+    (* goal P1 = P2*)
+    intros.
+    apply in_map_iff in H.
+    destruct H as [P0 [H' H'']].
+    inversion H'.
+    subst l1 l2.
+    simpl in *.
+    assert (P0 = P1) as H_eq1. {
+      destruct H0; [exact H | tauto ].
+    }
+    assert (P0 = P2) as H_eq2. {
+      destruct H1; [exact H | tauto ].
+    }
+    subst P1 P2.
+    exact H3.
+  + intros.
+    apply in_map_iff in H.
+    destruct H as [P0 [H' H'']].
+    inversion H'.
+    reflexivity.
+Qed.
+    
 
+(*
+  Description:
+    Reflexivity of imply_event under equivalence.
+*)
 Theorem ProbDistr_imply_event_refl_setoid:
   forall d1 d2, ProbDistr.equiv_event d1 d2 -> ProbDistr.imply_event d1 d2.
-Admitted. (** Level 1 *)
+(* Admitted. * Level 1 *)
+  intros.
+  unfold ProbDistr.equiv_event in H.
+  destruct H as [L H].
+  unfold ProbDistr.imply_event.
+  exists L.
+  destruct H as [H1 H2].
+  destruct H2 as [H2 H3].
+  destruct H3 as [H3 H4].
 
+  repeat split; simpl; [
+    apply H1 |
+    apply H2 |
+    |
+  ].
+  clear H1 H2.
+  + intros.
+    specialize (H3 l1 l2 H P1 H0 P2 H1 H1).
+    (* 
+    specialize (H3 l1 l2).
+    specialize (H3 H).
+    specialize (H3 P1).
+    specialize (H3 H0).
+    specialize (H3 P2).
+    repeat specialize (H3 H1). *)
+    rewrite <-H3.
+    exact H5.
+  + intros.
+    specialize (H4 l1 l2 H).
+    exact H4.
+Qed.
+    
+(* 
+  Description:
+    ProbDistr.equiv is indeed an Equivalence relation.
+*)
 #[export] Instance ProbDistr_equiv_equiv {A: Type}:
   Equivalence (@ProbDistr.equiv A).
+(* Admitted. * Level 1 *)
 Proof.
-Admitted. (** Level 1 *)
+  unfold ProbDistr.equiv.
+  split.
+  - (* Reflexivity*)
+    unfold Reflexive.
+    intro x.
+    split; [reflexivity | reflexivity].
+  - (* Symmetric *)
+    unfold Symmetric.
+    intros x y H.
+    destruct H as [H1 H2].
+    split.
+    + symmetry. 
+      specialize (H1 a).
+      exact H1.
+    + symmetry.
+      exact H2.
+  - (* Transitivity *)
+    unfold Transitive.
+    intros.
+    destruct H as [H1a H1b].
+    destruct H0 as [H2a H2b].
+    split.
+    + intros.
+      specialize (H1a a).
+      specialize (H2a a).
+      rewrite H1a, H2a.
+      reflexivity.
+    + rewrite H1b, H2b.
+      reflexivity.
+Qed.
 
 #[export] Instance ProbDistr_imply_event_trans:
   Transitive ProbDistr.imply_event.
