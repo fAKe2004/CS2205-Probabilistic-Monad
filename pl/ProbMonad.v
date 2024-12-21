@@ -255,7 +255,7 @@ Notation "x '.(legal_prob_1)'" := (ProbDistr.legal_prob_1 _ x) (at level 1).
     filter_true_prop_list_exists
 
   Property:
-    Auxiliary Theorm
+    Auxiliary Theorem
   
   Description:
     For a list of Prop: L,
