@@ -328,29 +328,124 @@ Qed.
   Transitive ProbDistr.imply_event.
 (* Admitted. * Level 1 *)
 Proof.
-Admitted.
+  unfold Transitive.
+  intros x y z H1 H2.
+  unfold ProbDistr.imply_event in *.
+  destruct H1 as [r1 [r2 [H1 [H3 H4]]]].
+  destruct H2 as [r2' [r3 [H2 [H5 H6]]]].
+  exists r1, r3.
+  specialize (ProbDistr.compute_pr_unique y r2 r2' H3 H2) as H7.
+  split.
+  - exact H1.
+  - split.
+    + exact H5.
+    + lra.
+Qed.
 
 
+(*
+  Description:
+    Equivalence of events is an equivalence relation.
+*)
 #[export] Instance ProbDistr_equiv_event_equiv:
   Equivalence ProbDistr.equiv_event.
-Admitted. (** Level 1 *)
+Proof.
+  unfold ProbDistr.equiv_event.
+  split.
+  - (* Reflexivity *)
+    unfold Reflexive.
+    intros x.
+    destruct (ProbDistr_compute_pr_exists x) as [r H].
+    exists r, r.
+    split; [exact H | split; [exact H | lra]].
+  - (* Symmetric *)
+    unfold Symmetric.
+    intros x y H.
+    destruct H as [r1 [r2 [H1 [H2 H3]]]].
+    exists r2, r1.
+    split; [exact H2 | split; [exact H1 | lra]].
+  - (* Transitivity *)
+    unfold Transitive.
+    intros x y z H1 H2.
+    destruct H1 as [r1 [r2 [H1 [H3 H4]]]].
+    destruct H2 as [r2' [r3 [H2 [H5 H6]]]].
+    exists r1, r3.
+    specialize (ProbDistr.compute_pr_unique y r2 r2' H3 H2) as H7.
+    split.
+    + exact H1.
+    + split.
+      * exact H5.
+      * lra.
+Qed.  
 
+(* 
+  Description:
+    This instance proves that the `ProbDistr.imply_event` relation 
+      is preserved under the `ProbDistr.equiv_event` equivalence.
+    Specifically, if two distributions `x` and `y` are equivalent 
+      and two other distributions `z` and `w` are also equivalent,
+      then the implication relationship between `x` and `z` is 
+      logically equivalent to the implication relationship between `y` and `w`.
+*)
 #[export] Instance ProbDistr_imply_event_congr:
   Proper (ProbDistr.equiv_event ==>
           ProbDistr.equiv_event ==> iff) ProbDistr.imply_event.
-Admitted. (** Level 1 *)
+Proof.
+  unfold Proper, respectful.
+  intros x y H1 z w H2.
+  split; intros H.
+  - unfold ProbDistr.imply_event in *.
+    destruct H as [r1 [r2 [H3 [H4 H5]]]].
+    destruct H1 as [r1' [r2' [H6 [H7 H8]]]].
+    destruct H2 as [r1'' [r2'' [H9 [H10 H11]]]].
+    exists r1', r2''.
+    split.
+    + subst r1'.
+      exact H7.
+    + split.
+      * exact H10.
+      * (specialize (ProbDistr.compute_pr_unique x r1 r1' H3 H6) as H12).
+        subst r1'.
+        (specialize (ProbDistr.compute_pr_unique z r2 r1'' H4 H9) as H13).
+        lra.
+  - unfold ProbDistr.imply_event in *.
+    destruct H as [r1 [r2 [H3 [H4 H5]]]].
+    destruct H1 as [r1' [r2' [H6 [H7 H8]]]].
+    destruct H2 as [r1'' [r2'' [H9 [H10 H11]]]].
+    exists r1', r1''.
+    split.
+    + exact H6.
+    + split.
+      * exact H9.
+      * specialize (ProbDistr.compute_pr_unique y r1 r2' H3 H7) as H12.
+        specialize (ProbDistr.compute_pr_unique w r2 r2'' H4 H10) as H13.
+        lra.
+Qed.
+
 
 #[export] Instance ProbDistr_compute_pr_congr:
   Proper (ProbDistr.equiv_event ==> Sets.equiv) ProbDistr.compute_pr.
 Admitted. (** Level 1 *)
 
+(**
+  Description:
+    the imply_event relation can imply the montonicity of compute_pr relation.
+*)
 Theorem ProbDistr_compute_pr_mono:
   forall f1 f2 r1 r2,
     ProbDistr.compute_pr f1 r1 ->
     ProbDistr.compute_pr f2 r2 ->
     ProbDistr.imply_event f1 f2 ->
     (r1 <= r2)%R.
-Admitted. (** Level 1 *)
+Proof.
+  intros.
+  destruct H1 as [r1' [r2' [H1 [H2 H3]]]].
+  specialize (ProbDistr.compute_pr_unique f1 r1 r1' H H1) as H4.
+  specialize (ProbDistr.compute_pr_unique f2 r2 r2' H0 H2) as H5.
+  subst.
+  tauto.
+Qed.
+(**Admitted.  Level 1 *)
 
 (*********************************************************)
 (**                                                      *)
