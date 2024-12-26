@@ -8,16 +8,7 @@ Project repo for CS2205 ProbMonad
 
 6-8 Andylinx (Done)
 
-9-11 Zicong Zhang
-
-(9-10 finished)
-
-left :
-
-```coq
-Lemma __ret_Legal {A: Type}: forall a: A, Legal (__ret a).
-Admitted.
-```
+9-11 Zicong Zhang (Done)
 
 12-14 Mikeayaka
 
@@ -47,6 +38,7 @@ Admitted. (** Level 1 *)
 ### level 2 partition
 
 15-17 Mikeayaka
+
 ```coq
 #[export] Instance ProbMonad_imply_event_refl:
   Reflexive ProbMonad.imply_event.
@@ -63,6 +55,7 @@ Admitted. (** Level 2 *)
 ```
 
 18-21 Zicong Zhang
+
 ```coq
 #[export] Instance ProbMonad_equiv_event_equiv:
   Equivalence ProbMonad.equiv_event.
@@ -79,6 +72,7 @@ Admitted. (** Level 2 *)
 ```
 
 22-24 Andylinx
+
 ```coq
 Theorem compute_pr_mono:
   forall f1 f2 r1 r2,
@@ -104,6 +98,7 @@ Admitted. (** Level 2 *)
 ```
 
 25-27 fAKe
+
 ```coq
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
@@ -120,8 +115,6 @@ Admitted. (** Level 2 *)
   Proper (iff ==> ProbMonad.equiv_event) ret.
 Admitted. (** Level 2 *)
 ```
-
-
 
 # Note:
 
