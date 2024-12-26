@@ -194,6 +194,11 @@ Definition compute_pr (d: Distr Prop) (r: R): Prop :=
     (forall P, In P l <-> In P d.(pset) /\ P) /\
     sum_prob l d.(prob) = r.
   
+Lemma compute_pr_unique: forall d r1 r2,
+  compute_pr d r1 -> compute_pr d r2 -> r1 = r2.
+Admitted.
+
+
 
 (* updated new imply_event *)
 
