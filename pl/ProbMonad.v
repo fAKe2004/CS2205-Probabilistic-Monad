@@ -193,11 +193,6 @@ Definition compute_pr (d: Distr Prop) (r: R): Prop :=
     NoDup l /\
     (forall P, In P l <-> In P d.(pset) /\ P) /\
     sum_prob l d.(prob) = r.
-  
-Lemma compute_pr_unique: forall d r1 r2,
-  compute_pr d r1 -> compute_pr d r2 -> r1 = r2.
-Admitted.
-
 
 
 (* updated new imply_event *)
@@ -244,7 +239,117 @@ Notation "x '.(legal_pset_valid)'" := (ProbDistr.legal_pset_valid _ x) (at level
 Notation "x '.(legal_prob_1)'" := (ProbDistr.legal_prob_1 _ x) (at level 1).
 
 
+(*
+  Name: 
+    filter_true_prop_list_exists
+  Property: auxiliary theorem
+  Description:
+    For a list of Prop: L,
+    A list of Prop: l exists, s.t. 
+      l = filter (P is true) L.
+      i.e., l contains exactly all true Props in L.
+  Note: 
+    direct filter is not feasible, so a existential statement is necessary.
+*)
+Theorem filter_true_prop_list_exists:
+  forall L : list Prop, exists l : list Prop, (forall P, In P l <-> In P L /\ P).
+Proof.
+  induction L as [| Ph tl].
+  - exists [].
+    intros.
+    simpl.
+    tauto.
+  - destruct IHtl as [l0 H0].
+    destruct (classic Ph). (*cases analysis on Ph is true or false*)
+    + exists (Ph::l0).
+      intros.
+      split; intros; specialize (H0 P) as H0.
+      *  (* In P Ph::l0 -> *)
+        destruct H1.
+        ++ subst P. (* P = Ph*)
+          split; [left; tauto | tauto].
+        ++ (* P != Ph, thus P in l0 *)  
+          apply H0 in H1.
+          split; [right; tauto | tauto].
+      * (* In P (Ph :: tl) /\ P -> *)    
+        destruct H1.
+        destruct H1.
+        ++ subst P.
+          left.
+          reflexivity.
+        ++ right.
+          apply H0.
+          tauto.
+    + exists l0. (* Ph::tl, Ph is false*)
+      intros.
+      split; intros; specialize (H0 P) as H0.
+      * (* In P l0 -> In P (Ph :: tl) /\ P *)
+        apply H0 in H1.
+        split; [right; tauto | tauto].
+      * (* In P (Ph :: tl) /\ P -> In P l0 *)
+        assert (In P tl) as H_tl.
+        {
+          destruct H1.
+          destruct H1.
+          + subst P. contradiction.
+          + exact H1.
+        }
+        apply H0.
+        tauto.
+Qed.
 
+(*
+  Name: 
+    no_dup_in_equiv_list_exists
+  Property: auxiliary theorem
+  Description:
+    for any list l, 
+      a list l' contains same set of elements as l and has no duplication exists.
+*)
+Theorem no_dup_in_equiv_list_exists:
+  forall {A: Type} (l: list A),
+      exists l':list A,
+        NoDup l' /\ (forall a: A, In a l <-> In a l').
+Proof.
+  intros.
+  induction l as [| a lt IHl].
+  + exists [].
+    split.
+    - constructor.
+    - intros.
+      reflexivity.
+  + destruct IHl as [lt' [H1 H2]].
+    destruct (classic (In a lt)).
+    - (* case 1 a in lt, then lt' itself*)
+      exists lt'.
+      split; [exact H1| ].
+      intros.
+      split.
+      * intros.
+        destruct H0; 
+        [subst a; specialize(H2 a0); tauto 
+        | specialize(H2 a0); tauto].
+
+      * intros.
+        specialize (H2 a0).
+        apply H2 in H0.
+        right.
+        tauto.
+    - (* case 2 a not in lt, then a::lt'*)
+      exists (a::lt').
+      split.
+      * constructor; [specialize(H2 a); tauto | exact H1].
+      * intros.
+        specialize(H2 a0).
+        split.
+        -- intros [H0 | H0].
+           ++ subst. left. reflexivity.
+           ++ right. apply H2. exact H0.
+        -- intros [H0 | H0].
+           ++ subst. left. reflexivity.
+           ++ right. apply H2. exact H0.
+Qed.
+    
 (* 
   Description:
     for any distribution on Props: d,
@@ -253,8 +358,99 @@ Notation "x '.(legal_prob_1)'" := (ProbDistr.legal_prob_1 _ x) (at level 1).
 
 Theorem ProbDistr_compute_pr_exists: forall d, exists r,
   ProbDistr.compute_pr d r.
-Admitted.
+Proof.
+  intros.
+  unfold ProbDistr.compute_pr.
+  destruct (filter_true_prop_list_exists d.(pset)) as [l H].
+  specialize (no_dup_in_equiv_list_exists l) as [l' H'].
+  destruct H' as [H1 H2].
+  assert (forall P: Prop, In P l' <-> In P d.(pset) /\ P) as H3. {
+    intros.
+    specialize (H P).
+    specialize (H2 P).
+    rewrite <-H.
+    tauto.
+  }
 
+  exists (sum_prob l' d.(prob)).
+  exists l'; split; [apply H1 |]; split; [ | reflexivity].
+  intro P.
+  specialize (H3 P).
+  exact H3.
+Qed.
+
+
+
+(*
+  Name: 
+    no_dup_in_equiv_Permutation:
+  Property: auxiliary theorem
+  Description:
+    for any two list l1 l2.
+      if l1 l2 has no duplication and l1 l2 contain same set of elements.
+      then Permutation l1 l2.
+  
+  额，幽默一刻之标准库里好像有。用 NoDup_Permutation 即可。
+*)
+(* Theorem no_dup_in_equiv_Permutation:
+  forall {A: Type} (l1 l2: list A),
+    NoDup l1 -> NoDup l2 ->
+    (forall a: A, In a l1 <-> In a l2) ->
+    Permutation l1 l2.
+Proof.
+  intros.
+  apply NoDup_Permutation; [exact H | exact H0 |].
+  intros.
+  split; intros.
+  - specialize (H1 x).
+    tauto.
+  - specialize (H1 x).
+    tauto.
+Qed. *)
+
+Theorem Permutation_sum_eq:
+  forall (l1 l2: list R),
+    Permutation l1 l2 ->
+    sum l1 = sum l2.
+Proof.
+  intros l1 l2 Hperm.
+  induction Hperm.
+  - reflexivity.
+  - simpl. rewrite IHHperm. reflexivity.
+  - simpl. 
+    repeat rewrite <- Rplus_assoc.
+    rewrite (Rplus_comm y x).
+    reflexivity.
+  - rewrite IHHperm1. assumption.
+Qed.
+
+(*
+  Description:
+    for any distribution on Props: d
+      exactly one r satisfies compute_pr d r
+*)  
+Theorem ProbDistr_compute_pr_unique: 
+  forall d r1 r2,
+  ProbDistr.compute_pr d r1 -> ProbDistr.compute_pr d r2 -> r1 = r2.
+Proof.
+  intros.
+  destruct H as [l1 [H1a [H1b H1c]]].
+  destruct H0 as [l2 [H2a [H2b H2c]]].
+  subst.
+  unfold sum_prob.
+  assert (Permutation l1 l2) as H_perm. {
+    apply NoDup_Permutation; [assumption| assumption|].
+    intros x.
+    rewrite H1b.
+    rewrite H2b.
+    reflexivity.
+  }
+  assert (Permutation (map d.(prob) l1) (map d.(prob) l2)) as H_perm'. {
+    apply Permutation_map.
+    exact H_perm.
+  }
+  apply (Permutation_sum_eq (map d.(prob) l1) (map d.(prob) l2) H_perm').
+Qed.
 
 
 
@@ -270,7 +466,13 @@ Admitted.
   Reflexive ProbDistr.imply_event.
 (* Admitted. * Level 1 *)
 Proof.
-Admitted.
+  unfold Reflexive.
+  unfold ProbDistr.imply_event.
+  intro d.
+  specialize (ProbDistr_compute_pr_exists d) as [r H].
+  exists r, r.
+  split; [exact H | split; [exact H | lra]].
+Qed.
   
 (*
   Description:
@@ -278,7 +480,13 @@ Admitted.
 *)
 Theorem ProbDistr_imply_event_refl_setoid:
   forall d1 d2, ProbDistr.equiv_event d1 d2 -> ProbDistr.imply_event d1 d2.
-Admitted.
+Proof.
+  intros.
+  destruct H as [r1 [r2 [H1 [H2 H3]]]].
+  unfold ProbDistr.imply_event.
+  exists r1, r2.
+  split; [exact H1 | split; [exact H2 | lra]].
+Qed.
 
 (* 
   Description:
@@ -334,7 +542,7 @@ Proof.
   destruct H1 as [r1 [r2 [H1 [H3 H4]]]].
   destruct H2 as [r2' [r3 [H2 [H5 H6]]]].
   exists r1, r3.
-  specialize (ProbDistr.compute_pr_unique y r2 r2' H3 H2) as H7.
+  specialize (ProbDistr_compute_pr_unique y r2 r2' H3 H2) as H7.
   split.
   - exact H1.
   - split.
@@ -370,7 +578,7 @@ Proof.
     destruct H1 as [r1 [r2 [H1 [H3 H4]]]].
     destruct H2 as [r2' [r3 [H2 [H5 H6]]]].
     exists r1, r3.
-    specialize (ProbDistr.compute_pr_unique y r2 r2' H3 H2) as H7.
+    specialize (ProbDistr_compute_pr_unique y r2 r2' H3 H2) as H7.
     split.
     + exact H1.
     + split.
@@ -404,9 +612,9 @@ Proof.
       exact H7.
     + split.
       * exact H10.
-      * (specialize (ProbDistr.compute_pr_unique x r1 r1' H3 H6) as H12).
+      * (specialize (ProbDistr_compute_pr_unique x r1 r1' H3 H6) as H12).
         subst r1'.
-        (specialize (ProbDistr.compute_pr_unique z r2 r1'' H4 H9) as H13).
+        (specialize (ProbDistr_compute_pr_unique z r2 r1'' H4 H9) as H13).
         lra.
   - unfold ProbDistr.imply_event in *.
     destruct H as [r1 [r2 [H3 [H4 H5]]]].
@@ -417,8 +625,8 @@ Proof.
     + exact H6.
     + split.
       * exact H9.
-      * specialize (ProbDistr.compute_pr_unique y r1 r2' H3 H7) as H12.
-        specialize (ProbDistr.compute_pr_unique w r2 r2'' H4 H10) as H13.
+      * specialize (ProbDistr_compute_pr_unique y r1 r2' H3 H7) as H12.
+        specialize (ProbDistr_compute_pr_unique w r2 r2'' H4 H10) as H13.
         lra.
 Qed.
 
@@ -436,12 +644,12 @@ Proof.
   destruct H as [r1 [r2 [H1 [H2 H3]]]].
   split.
   - intros.
-    specialize (ProbDistr.compute_pr_unique d1 r1 a H1 H) as H4.
+    specialize (ProbDistr_compute_pr_unique d1 r1 a H1 H) as H4.
     rewrite <- H4.
     rewrite <- H3 in H2.
     tauto.
   - intros.
-    specialize (ProbDistr.compute_pr_unique d2 r2 a H2 H) as H4.
+    specialize (ProbDistr_compute_pr_unique d2 r2 a H2 H) as H4.
     rewrite <- H4.
     rewrite H3 in H1.
     tauto.
@@ -461,8 +669,8 @@ Theorem ProbDistr_compute_pr_mono:
 Proof.
   intros.
   destruct H1 as [r1' [r2' [H1 [H2 H3]]]].
-  specialize (ProbDistr.compute_pr_unique f1 r1 r1' H H1) as H4.
-  specialize (ProbDistr.compute_pr_unique f2 r2 r2' H0 H2) as H5.
+  specialize (ProbDistr_compute_pr_unique f1 r1 r1' H H1) as H4.
+  specialize (ProbDistr_compute_pr_unique f2 r2 r2' H0 H2) as H5.
   subst.
   tauto.
 Qed.
