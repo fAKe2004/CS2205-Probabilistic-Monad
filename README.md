@@ -1,4 +1,5 @@
 # CS2205-Probabilistic-Monad
+
 Project repo for CS2205 ProbMonad
 
 level 1 partition
@@ -6,6 +7,7 @@ level 1 partition
 1-4 fAKe (Done)
 
 6-8 Andylinx
+
 ```coq
 #[export] Instance ProbDistr_imply_event_trans:
   Transitive ProbDistr.imply_event.
@@ -22,26 +24,18 @@ Admitted. (** Level 1 *)
 ```
 
 9-11 Zicong Zhang
+
+(9-10 finished)
+
+left :
+
 ```coq
-#[export] Instance ProbDistr_compute_pr_congr:
-  Proper (ProbDistr.equiv_event ==> Sets.equiv) ProbDistr.compute_pr.
-Admitted. (** Level 1 *)
-
-Theorem ProbDistr_compute_pr_mono:
-  forall f1 f2 r1 r2,
-    ProbDistr.compute_pr f1 r1 ->
-    ProbDistr.compute_pr f2 r2 ->
-    ProbDistr.imply_event f1 f2 ->
-    (r1 <= r2)%R.
-Admitted. (** Level 1 *)
-
-...
-
 Lemma __ret_Legal {A: Type}: forall a: A, Legal (__ret a).
 Admitted.
 ```
 
 12-14 Mikeayaka
+
 ```coq
 Lemma __bind_legal {A B: Type}:
   forall (f: Distr A -> Prop) (g: A -> Distr B -> Prop),
@@ -65,8 +59,8 @@ Proof.
 Admitted. (** Level 1 *)
 ```
 
-
 # Note:
+
 - fAKe: 没怎么看懂 imply-event 到底讲了什么，如果有更直观的理解请写进 description 部分。
 
 - fAKe: 要求：对每个 Theorem/核心 Definition 写 description 记录其直观含义。对辅助引理，注意命名规范，并且标注 "Auxiliary Theorem".

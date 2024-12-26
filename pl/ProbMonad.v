@@ -340,17 +340,50 @@ Admitted. (** Level 1 *)
           ProbDistr.equiv_event ==> iff) ProbDistr.imply_event.
 Admitted. (** Level 1 *)
 
+(**
+  Description:
+    ProbDistr.compute_pr is a congruence relation.
+  eg : ProbDistr.equiv_event d1 d2 -> ProbDistr.compute_pr d1 = ProbDistr.compute_pr d2
+*)
 #[export] Instance ProbDistr_compute_pr_congr:
   Proper (ProbDistr.equiv_event ==> Sets.equiv) ProbDistr.compute_pr.
-Admitted. (** Level 1 *)
+Proof.
+  unfold Proper, respectful.
+  intros d1 d2 H.
+  destruct H as [r1 [r2 [H1 [H2 H3]]]].
+  split.
+  - intros.
+    specialize (ProbDistr.compute_pr_unique d1 r1 a H1 H) as H4.
+    rewrite <- H4.
+    rewrite <- H3 in H2.
+    tauto.
+  - intros.
+    specialize (ProbDistr.compute_pr_unique d2 r2 a H2 H) as H4.
+    rewrite <- H4.
+    rewrite H3 in H1.
+    tauto.
+Qed.
+(** Admitted.  Level 1 *)
 
+(**
+  Description:
+    the imply_event relation can imply the montonicity of compute_pr relation.
+*)
 Theorem ProbDistr_compute_pr_mono:
   forall f1 f2 r1 r2,
     ProbDistr.compute_pr f1 r1 ->
     ProbDistr.compute_pr f2 r2 ->
     ProbDistr.imply_event f1 f2 ->
     (r1 <= r2)%R.
-Admitted. (** Level 1 *)
+Proof.
+  intros.
+  destruct H1 as [r1' [r2' [H1 [H2 H3]]]].
+  specialize (ProbDistr.compute_pr_unique f1 r1 r1' H H1) as H4.
+  specialize (ProbDistr.compute_pr_unique f2 r2 r2' H0 H2) as H5.
+  subst.
+  tauto.
+Qed.
+(**Admitted.  Level 1 *)
 
 (*********************************************************)
 (**                                                      *)
