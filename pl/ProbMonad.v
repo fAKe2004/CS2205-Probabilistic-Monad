@@ -380,6 +380,98 @@ Proof.
 Qed.
 
 
+Lemma Permutation_in:
+  forall {A: Type} (l1 l2: list A) (x: A),
+    Permutation l1 l2 -> In x l1 -> In x l2.
+Admitted.
+  
+  
+  
+Theorem Permutation_sum_eq:
+  forall (l1 l2: list R),
+    Permutation l1 l2 ->
+    sum l1 = sum l2.
+Proof.
+  intros l1 l2 Hperm.
+  induction Hperm.
+  - reflexivity.
+  - simpl. rewrite IHHperm. reflexivity.
+  - simpl. 
+    repeat rewrite <- Rplus_assoc.
+    rewrite (Rplus_comm y x).
+    reflexivity.
+  - rewrite IHHperm1. assumption.
+Qed.
+
+Lemma Permutation_sum_map_eq:
+  forall (l1 l2: list Prop) (f1 f2: Prop -> R),
+    Permutation l1 l2 ->
+    (forall x, f1 x = f2 x) ->
+    sum (map f1 l1) = sum (map f2 l2).
+Admitted.
+  
+Theorem equiv_equiv_event:
+  forall (d1 d2: Distr Prop),
+    ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
+Proof.
+  intros.
+  destruct H as [H8 H9].
+  unfold ProbDistr.equiv_event.
+  destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
+  specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
+  destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
+  specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
+  destruct H2 as [H2a H2b].
+  destruct H4 as [H4a H4b].
+  assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+    intros.
+    specialize (H2b P).
+    specialize (H1 P).
+    rewrite <-H1.
+    tauto.
+  }
+  assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
+    intros.
+    specialize (H4b P).
+    specialize (H3 P).
+    rewrite <-H3.
+    tauto.
+  }
+  exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
+  split; [ | split].
+  - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
+  - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
+  - assert (Permutation l2 l4) as Hperm. {
+      apply NoDup_Permutation; [exact H2a | exact H4a |].
+      intros x.
+      specialize (H2c x).
+      specialize (H4c x).
+      split; intros.
+      + apply H2c in H.
+
+        apply H4c.
+        split.
+        2:{apply H. }
+        -- apply Permutation_in with (l1:=d1.(pset)).
+          --- exact H9.
+          --- apply H.
+      + apply H4c in H.
+
+      apply H2c.
+      split.
+      2:{apply H. }
+      -- apply Permutation_in with (l1:=d2.(pset)).
+        --- rewrite H9. reflexivity.
+        --- apply H.
+    }
+    unfold sum_prob.
+    apply Permutation_sum_map_eq.
+    exact Hperm.
+    apply H8.
+Qed.
+
+
+
 
 (*
   Name: 
@@ -408,21 +500,7 @@ Proof.
     tauto.
 Qed. *)
 
-Theorem Permutation_sum_eq:
-  forall (l1 l2: list R),
-    Permutation l1 l2 ->
-    sum l1 = sum l2.
-Proof.
-  intros l1 l2 Hperm.
-  induction Hperm.
-  - reflexivity.
-  - simpl. rewrite IHHperm. reflexivity.
-  - simpl. 
-    repeat rewrite <- Rplus_assoc.
-    rewrite (Rplus_comm y x).
-    reflexivity.
-  - rewrite IHHperm1. assumption.
-Qed.
+
 
 (*
   Description:
@@ -857,7 +935,7 @@ Lemma __bind_legal {A B: Type}:
       Legal f ->
       (forall a, Legal (g a)) ->
       Legal (__bind f g).
-Admitted.
+Admitted. 
 
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
   {|
@@ -923,11 +1001,36 @@ Qed.
 
 #[export] Instance ProbMonad_imply_event_refl:
   Reflexive ProbMonad.imply_event.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Reflexive.
+  intros x.
+  unfold ProbMonad.imply_event.
+  destruct (ProbMonad.Legal_exists _ x.(legal)) as [d1 ?].
+  exists d1, d1.
+  split.
+  + exact H.
+  + split.
+    - exact H.
+    - apply ProbDistr_imply_event_refl.
+Qed.
+(**Admitted. Level 2 *)
 
 Theorem ProbMonad_imply_event_refl_setoid:
   forall d1 d2, ProbMonad.equiv_event d1 d2 -> ProbMonad.imply_event d1 d2.
-Admitted. (** Level 2 *)
+Proof.
+  intros.
+  unfold ProbMonad.equiv_event in H.
+  destruct H as [r1 [r2 [H1 [H2 H3]]]].
+  unfold ProbMonad.imply_event.
+  exists r1, r2.
+  split.
+  - exact H1.
+  - split.
+    + exact H2.
+    + apply ProbDistr_imply_event_refl_setoid.
+      exact H3.
+Qed.
+(**Admitted.  Level 2 *)
 
 #[export] Instance ProbMonad_equiv_equiv {A: Type}:
   Equivalence (@ProbMonad.equiv A).
@@ -939,7 +1042,28 @@ Qed.
 
 #[export] Instance ProbMonad_imply_event_trans:
   Transitive ProbMonad.imply_event.
-Admitted. (** Level 2 *)
+Proof.
+  intros x y z H1 H2.
+  unfold ProbMonad.imply_event in *.
+  destruct H1 as [d1 [d2 [H3 [H4 H5]]]].
+  destruct H2 as [d2' [d3 [H6 [H7 H8]]]].
+  exists d1, d3.
+  split.
+  - exact H3. 
+  - split.
+    + exact H7.
+    + pose proof y.(legal).(Legal_unique) as H9.
+      specialize (H9 d2 d2' H4 H6).
+      apply ProbDistr_imply_event_trans with d2.
+      * exact H5.
+      * apply ProbDistr_imply_event_trans with d2'.
+      2:{ exact H8. }
+      apply ProbDistr_imply_event_refl_setoid.
+      apply equiv_equiv_event in H9.
+      exact H9.
+Qed.
+
+(**Admitted. Level 2 *)
 
 #[export] Instance ProbMonad_equiv_event_equiv:
   Equivalence ProbMonad.equiv_event.
