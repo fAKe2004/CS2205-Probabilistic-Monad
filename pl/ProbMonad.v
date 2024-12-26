@@ -494,8 +494,137 @@ Arguments legal {_} _.
 Definition __ret {A: Type} (a: A) : Distr A -> Prop :=
   ProbDistr.is_det a.
 
+(**
+  Name: 
+    eq_dec
+
+  Property:
+    Axiom
+  
+  Description:
+    decidable equality for any type A.
+
+  Note: 
+    when need to check two elements are equal or not, you can use this function to destrcut the result.
+    eg : destruct (eq_dec a b) as [H_equal | H_neq].
+*)
+Axiom eq_dec: forall {A: Type} (x y: A), {x = y} + {x <> y}.
+
+(*
+  Name: 
+    eq_dec_refl
+
+  Property:
+    Auxilary Theorem
+  
+  Description:
+    eq_dec is a reflexive realtion and the result of eq_dec a a = left eq_refl.
+*)
+Lemma eq_dec_refl: forall {A: Type} (a: A), eq_dec a a = left eq_refl.
+Proof.
+  intros A a.
+  destruct (eq_dec a a).
+  - f_equal.
+    apply proof_irrelevance.
+  - contradiction.
+Qed.
+
+(*
+  Name: 
+    not_equal_symmetry
+
+  Property:
+    Auxilary Theorem
+  
+  Description:
+    not_equl for Type A is symmetric , if x <> y, then y <> x.
+*)
+Lemma not_equal_symmetry : forall (A : Type) (x y : A), x <> y -> y <> x.
+Proof.
+  intros A x y H.
+  unfold not in *.
+  intros H1.
+  apply H.
+  rewrite H1.
+  reflexivity.
+Qed.
+
+(**
+  Description:
+    Legal of __ret a.
+*)
 Lemma __ret_Legal {A: Type}: forall a: A, Legal (__ret a).
-Admitted.
+Proof.
+  intros.
+  unfold __ret, ProbDistr.is_det.
+  split.
+  - exists {| 
+      ProbDistr.prob := fun x => if eq_dec x a then 1%R else 0%R;
+      ProbDistr.pset := [a]
+    |}.
+    split; simpl.
+    + reflexivity.
+    + split.
+      * rewrite eq_dec_refl.
+        lra.
+      * intros.
+        destruct (eq_dec b a).
+        -- exfalso. 
+           apply H.
+           rewrite e.
+           reflexivity.
+        -- tauto.
+  - intros.
+    destruct H as [Hpset [Hprob1 Hprob2]].
+    split.
+    + rewrite Hpset.
+      apply NoDup_cons.
+      * simpl;tauto.
+      * simpl.
+        apply NoDup_nil.
+    + intros.
+      destruct (eq_dec a0 a).
+      * subst.
+        rewrite Hprob1.
+        lra.
+      * specialize (Hprob2 a0).
+        apply not_equal_symmetry in n.
+        specialize (Hprob2 n).
+        rewrite Hprob2.
+        lra.
+    + intros.
+      destruct (eq_dec a0 a).
+      * rewrite e, Hpset.
+        apply in_eq.
+      * specialize (Hprob2 a0).
+        apply not_equal_symmetry in n.
+        specialize (Hprob2 n).
+        lra.
+    + rewrite Hpset.
+      unfold sum_prob.
+      simpl.
+      rewrite Hprob1.
+      lra.
+  - intros.
+    destruct H as [H_d1_pset [H_d1_prob1 H_d1_prob2]].
+    destruct H0 as [H_d2_pset [H_d2_prob1 H_d2_prob2]].
+    unfold ProbDistr.equiv.
+    split.
+    + intros.
+      destruct (eq_dec a0 a).
+      * subst.
+        rewrite H_d1_prob1, H_d2_prob1.
+        reflexivity.
+      * apply not_equal_symmetry in n.
+        specialize (H_d1_prob2 a0 n).
+        specialize (H_d2_prob2 a0 n).
+        rewrite H_d1_prob2, H_d2_prob2.
+        reflexivity.
+    + rewrite H_d1_pset, H_d2_pset.
+      apply Permutation_refl.
+Qed.
+         
+      
 
 Definition ret {A: Type} (a: A) : M A :=
   {|
@@ -520,7 +649,17 @@ Lemma __bind_legal {A B: Type}:
     Legal f ->
     (forall a, Legal (g a)) ->
     Legal (__bind f g).
-Admitted.
+Proof.
+  intros.
+  split; unfold __ret, ProbDistr.is_det.
+  - exists {|
+      (** ProbDistr.prob := fun x => if x=a then 1%R else 0%R; *)
+      ProbDistr.prob := fun x => match classic (x=a) with
+                                |  => 1%R
+                                |  => 0%R
+                                end;
+      ProbDistr.pset := [a]
+    |}.
 
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
   {|
