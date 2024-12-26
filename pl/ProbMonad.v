@@ -645,21 +645,11 @@ Definition __bind {A B: Type}
     ProbDistr.sum_distr l s2.
 
 Lemma __bind_legal {A B: Type}:
-  forall (f: Distr A -> Prop) (g: A -> Distr B -> Prop),
-    Legal f ->
-    (forall a, Legal (g a)) ->
-    Legal (__bind f g).
-Proof.
-  intros.
-  split; unfold __ret, ProbDistr.is_det.
-  - exists {|
-      (** ProbDistr.prob := fun x => if x=a then 1%R else 0%R; *)
-      ProbDistr.prob := fun x => match classic (x=a) with
-                                |  => 1%R
-                                |  => 0%R
-                                end;
-      ProbDistr.pset := [a]
-    |}.
+    forall (f: Distr A -> Prop) (g: A -> Distr B -> Prop),
+      Legal f ->
+      (forall a, Legal (g a)) ->
+      Legal (__bind f g).
+Admitted.
 
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
   {|
