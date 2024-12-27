@@ -437,12 +437,6 @@ Proof.
     lra.
 Qed.
 
-
-Lemma Permutation_in:
-  forall {A: Type} (l1 l2: list A) (x: A),
-    Permutation l1 l2 -> In x l1 -> In x l2.
-Admitted.
-  
 Theorem Permutation_sum_eq:
   forall (l1 l2: list R),
     Permutation l1 l2 ->
@@ -464,75 +458,94 @@ Lemma Permutation_sum_map_eq:
     Permutation l1 l2 ->
     (forall x, f1 x = f2 x) ->
     sum (map f1 l1) = sum (map f2 l2).
-Admitted.
-  
+    Proof.
+    intros.
+    apply Permutation_sum_eq.
+    specialize (Permutation_map f1 H).
+    intros.
+    apply Permutation_trans with (map f1 l2).
+    + exact H1.
+    +
+      clear H1.
+      clear H.
+      induction l2.
+      * simpl. reflexivity.
+      * simpl.
+        rewrite IHl2.
+        specialize (H0 a).
+        rewrite H0.
+        reflexivity.
+  Qed.
 
-(*
+(**
   Name: ProbDistr_equiv_equiv_event
   Property: Auxiliary Theorem
   Description:
     for any two distributions d1 d2,
-      if d1 equiv d2, then d1 equiv_event d2.
+      if d1 d2 are equivalent, then d1 d2 are equivalent in event.
+    i.e., 
+      for any two distributions d1 d2,
+        ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
 *)
 Theorem ProbDistr_equiv_equiv_event:
   forall (d1 d2: Distr Prop),
     ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
-Proof.
-  intros.
-  destruct H as [H8 H9].
-  unfold ProbDistr.equiv_event.
-  destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
-  specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
-  destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
-  specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
-  destruct H2 as [H2a H2b].
-  destruct H4 as [H4a H4b].
-  assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+    Proof.
     intros.
-    specialize (H2b P).
-    specialize (H1 P).
-    rewrite <-H1.
-    tauto.
-  }
-  assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
-    intros.
-    specialize (H4b P).
-    specialize (H3 P).
-    rewrite <-H3.
-    tauto.
-  }
-  exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
-  split; [ | split].
-  - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
-  - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
-  - assert (Permutation l2 l4) as Hperm. {
-      apply NoDup_Permutation; [exact H2a | exact H4a |].
-      intros x.
-      specialize (H2c x).
-      specialize (H4c x).
-      split; intros.
-      + apply H2c in H.
-
-        apply H4c.
+    destruct H as [H8 H9].
+    unfold ProbDistr.equiv_event.
+    destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
+    specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
+    destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
+    specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
+    destruct H2 as [H2a H2b].
+    destruct H4 as [H4a H4b].
+    assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+      intros.
+      specialize (H2b P).
+      specialize (H1 P).
+      rewrite <-H1.
+      tauto.
+    }
+    assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
+      intros.
+      specialize (H4b P).
+      specialize (H3 P).
+      rewrite <-H3.
+      tauto.
+    }
+    exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
+    split; [ | split].
+    - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
+    - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
+    - assert (Permutation l2 l4) as Hperm. {
+        apply NoDup_Permutation; [exact H2a | exact H4a |].
+        intros x.
+        specialize (H2c x).
+        specialize (H4c x).
+        split; intros.
+        + apply H2c in H.
+  
+          apply H4c.
+          split.
+          2:{apply H. }
+          -- apply Permutation_in with (l:=d1.(pset)).
+            --- exact H9.
+            --- apply H.
+        + apply H4c in H.
+        apply H2c.
         split.
         2:{apply H. }
-        -- apply Permutation_in with (l1:=d1.(pset)).
-          --- exact H9.
+        -- apply Permutation_in with (l:=d2.(pset)).
+          --- rewrite H9. reflexivity.
           --- apply H.
-      + apply H4c in H.
+      }
+      unfold sum_prob.
+      apply Permutation_sum_map_eq.
+      exact Hperm.
+      apply H8.
+  Qed.
 
-      apply H2c.
-      split.
-      2:{apply H. }
-      -- apply Permutation_in with (l1:=d2.(pset)).
-        --- rewrite H9. reflexivity.
-        --- apply H.
-    }
-    unfold sum_prob.
-    apply Permutation_sum_map_eq.
-    exact Hperm.
-    apply H8.
-Qed.
 
 
 
@@ -975,13 +988,34 @@ Definition __bind {A B: Type}
       s1.(pset) l /\
     ProbDistr.sum_distr l s2.
 
+
+  (* Define rem_dups to remove duplicates from a list *)
+Fixpoint rem_dups {A: Type} (eq_dec: forall x y: A, {x = y} + {x <> y}) (l: list A) : list A :=
+  match l with
+  | [] => []
+  | x :: xs => if existsb (fun y => if eq_dec x y then true else false) xs
+               then rem_dups eq_dec xs
+               else x :: rem_dups eq_dec xs
+  end.
+
+
+Lemma get_distr_from_legal {A : Type} {g : A -> Distr A -> Prop} (a : A) (Hg : Legal (g a)) : exists d : Distr A, d ∈ g a.
+Proof.
+  destruct Hg as [ex _ _].
+  exact ex.
+Qed.
+
 Lemma __bind_legal {A B: Type}:
     forall (f: Distr A -> Prop) (g: A -> Distr B -> Prop),
       Legal f ->
       (forall a, Legal (g a)) ->
       Legal (__bind f g).
-Admitted. 
+Proof.
+  
+    
+Admitted.
 
+    
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
   {|
     distr := __bind f.(distr) (fun a => (g a).(distr));
@@ -1116,6 +1150,7 @@ Proof.
   apply Sets_equiv_equiv.
 Qed.
 
+
 #[export] Instance ProbMonad_imply_event_trans:
   Transitive ProbMonad.imply_event.
 Proof.
@@ -1154,20 +1189,121 @@ Admitted. (** Level 2 *)
   Proper (ProbMonad.equiv_event ==> Sets.equiv) ProbMonad.compute_pr.
 Admitted. (** Level 2 *)
 
+(*
+  Description:
+    the imply_event relation can imply the montonicity of compute_pr relation.
+*)
 Theorem compute_pr_mono:
   forall f1 f2 r1 r2,
     ProbMonad.compute_pr f1 r1 ->
     ProbMonad.compute_pr f2 r2 ->
     ProbMonad.imply_event f1 f2 ->
     (r1 <= r2)%R.
-Admitted.
+Proof.
+    intros f1 f2 r1 r2 Hpr1 Hpr2 Himpl.
+    unfold ProbMonad.compute_pr in *.
+    destruct Hpr1 as [d1 [Hf1 Hd1]].
+    destruct Hpr2 as [d2 [Hf2 Hd2]].
+    destruct Himpl as [d1' [d2' [Hd1' [Hd2' Himpl']]]].
+    assert (Himpl_eq:ProbDistr.equiv d1 d1').
+    {
+      apply f1.(legal).(Legal_unique).
+      exact Hf1.
+      exact Hd1'.
+    }
+    assert (Himpl_eq':ProbDistr.equiv d2 d2').
+    {
+      apply f2.(legal).(Legal_unique).
+      exact Hf2.
+      exact Hd2'.
+    }
+    specialize (ProbDistr_equiv_equiv_event d1 d1' Himpl_eq) as Himpl_eq_event.
+    specialize (ProbDistr_equiv_equiv_event d2 d2' Himpl_eq') as Himpl_eq_event'.
+    specialize (ProbDistr_imply_event_congr d1 d1' Himpl_eq_event d2 d2' Himpl_eq_event') as Himpl_eq_event_congr.
+    apply Himpl_eq_event_congr in Himpl'.
+    unfold ProbDistr.imply_event in Himpl'.
+    specialize (ProbDistr_compute_pr_mono d1 d2 r1 r2 Hd1 Hd2 Himpl') as Hmono.
+    exact Hmono.
+Qed.
 
+
+
+(* 
+  Auxiliary Theorem:
+    Apply forall a:A, g1 a == g2 a into
+      a Forall2 form.
+*)
+Lemma Forall2_equiv_g1_g2:
+  forall (A B : Type) (d1 : Distr A) (d2 : list (R * Distr B)) (g1 g2 : A -> ProbMonad.M B),
+    (forall a : A, g1 a == g2 a) ->
+    Forall2 (fun (a : A) '(r, d) => r = d1.(prob) a /\ d ∈ (g1 a).(distr)) d1.(pset) d2 ->
+    Forall2 (fun (a0 : A) '(r, d) => r = d1.(prob) a0 /\ d ∈ (g2 a0).(distr)) d1.(pset) d2.
+Proof.
+  intros A B d1 d2 g1 g2 H2 H4.
+  induction H4.
+  - (* Base case: empty list *)
+    constructor.
+  - (* Inductive case *)
+    destruct y as [r d].
+    constructor.
+    + (* Prove the head of the list *)
+      destruct H as [Hr Hd].
+      split.
+      * exact Hr.
+      * apply H2 in Hd. exact Hd.
+    + (* Prove the tail of the list *)
+      apply IHForall2.
+Qed.
+
+
+(* 
+  Description:
+    `bind` operation respects the `equiv` equivalence relation. 
+    Specifically, if two monad `f1` and `f2` are equivalent, 
+    and for all elements `a` of type `A`, the monadic values `g1 a` and `g2 a` are equivalent, 
+    then the result of binding `f1` with `g1` is equivalent to the result of binding `f2` with `g2`.
+    
+    Formally, if `f1 == f2` and `(forall a, g1 a == g2 a)`, then `bind f1 g1 == bind f2 g2`.
+*)
 #[export] Instance ProbMonad_bind_congr (A B: Type):
   Proper (ProbMonad.equiv ==>
           pointwise_relation _ ProbMonad.equiv ==>
           ProbMonad.equiv)
     (@bind _ ProbMonad A B).
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, pointwise_relation.
+  intros f1 f2 H1 g1 g2 H2.
+  unfold ProbMonad.equiv.
+  split.
+  - intros.
+    unfold ProbMonad.__bind in *.
+    destruct H as [d1 [d2 [H3 [H4 H5]]]].
+    exists d1, d2.
+    split.
+    + apply H1.
+      exact H3.
+    + split.
+      * specialize (Forall2_equiv_g1_g2 _ _ d1 _ g1 g2 H2 H4) as H6.
+        exact H6.
+      * exact H5.
+  - intros.
+    unfold ProbMonad.__bind in *.
+    destruct H as [d1 [d2 [H3 [H4 H5]]]].
+    exists d1, d2.
+    split.
+    + apply H1.
+      exact H3.
+    + split.
+      * assert (forall a: A, g2 a == g1 a) as H2'.
+        {
+          intros.
+          symmetry.
+          apply H2.
+        }
+        specialize (Forall2_equiv_g1_g2 _ _ d1 _ g2 g1 H2' H4) as H6.
+        exact H6.
+      * exact H5. 
+Qed.    
 
 #[export] Instance ProbMonad_bind_mono_event (A: Type):
   Proper (ProbMonad.equiv ==>
