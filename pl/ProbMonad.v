@@ -158,35 +158,6 @@ Definition equiv {A: Type} (d1 d2: Distr A): Prop :=
   (forall a: A, d1.(prob) a = d2.(prob) a) /\
   Permutation d1.(pset) d2.(pset).
 
-(*
-  Description:
-    whether exists an implication relation from d1 to d2.
-    i.e.,
-    Can d1 be partitioned into disjoint ∪ E_i, 
-    and d2 be partitioned into disjoint ∪ F_i,
-
-    so that for all i:
-      E_i -> F_i.
-      /\
-      Prob[E_i] = Prob[F_i]
-
-    (here 'imply' means forall p ∈ E_i, q ∈ F_i, p->q).
-
-  Argument:
-     d1 d2 : Distr Prop.
-
-  Note:
-    L is a list pair(list Prop, list Prop)
-      concat (map fst L) -> a partition of d1's outcomes (Prop).
-      concat (map snd L) -> a partition of d2's outcomes (Prop).
-    
-  for (event1, event2) ∈ L 
-    forall Prop P1 ∈ event1, Prop P2 ∈ event2.
-      P1 -> P2.
-    /\
-    Prob[event1] = Prob[event2]
-*)
-
 (* check if r = Prob[true Prop in d.(pset)] *)
 Definition compute_pr (d: Distr Prop) (r: R): Prop :=
   exists (l: list Prop),
@@ -242,7 +213,7 @@ Notation "x '.(legal_prob_1)'" := (ProbDistr.legal_prob_1 _ x) (at level 1).
 (*
   Name: 
     filter_true_prop_list_exists
-  Property: auxiliary theorem
+  Property: Auxiliary Theorem
   Description:
     For a list of Prop: L,
     A list of Prop: l exists, s.t. 
@@ -301,7 +272,7 @@ Qed.
 (*
   Name: 
     no_dup_in_equiv_list_exists
-  Property: auxiliary theorem
+  Property: Auxiliary Theorem
   Description:
     for any list l, 
       a list l' contains same set of elements as l and has no duplication exists.
@@ -384,7 +355,7 @@ Qed.
 (*
   Name: 
     no_dup_in_equiv_Permutation:
-  Property: auxiliary theorem
+  Property: Auxiliary Theorem
   Description:
     for any two list l1 l2.
       if l1 l2 has no duplication and l1 l2 contain same set of elements.
@@ -431,7 +402,9 @@ Qed.
 *)  
 Theorem ProbDistr_compute_pr_unique: 
   forall d r1 r2,
-  ProbDistr.compute_pr d r1 -> ProbDistr.compute_pr d r2 -> r1 = r2.
+  ProbDistr.compute_pr d r1 -> 
+  ProbDistr.compute_pr d r2 -> 
+  r1 = r2.
 Proof.
   intros.
   destruct H as [l1 [H1a [H1b H1c]]].
@@ -452,16 +425,29 @@ Proof.
   apply (Permutation_sum_eq (map d.(prob) l1) (map d.(prob) l2) H_perm').
 Qed.
 
-
+(*
+  Name: ProbDistr_compute_pr_congr_weak
+  Property: Auxiliary Theorem
+  Descitption:
+    equiv d1 d2 -> compute_pr d1 == compute_pr d2.
+*)
+Theorem ProbDistr_compute_pr_congr_weak:
+  forall (d1 d2 : Distr Prop) (r1 r2 : R), 
+    ProbDistr.equiv d1 d2 -> 
+    ProbDistr.compute_pr d1 r1 ->
+    ProbDistr.compute_pr d2 r2 ->
+    r1 = r2.
+Proof.
+  intros.
+  unfold ProbDistr.equiv in *.
+  destruct H as [Ha Hb].
+  unfold 
 
 
 (*
   Description:
     Reflexivity of imply_event.
 *)
-
-(* TO DO *)
-
 #[export] Instance ProbDistr_imply_event_refl:
   Reflexive ProbDistr.imply_event.
 (* Admitted. * Level 1 *)
@@ -633,8 +619,11 @@ Qed.
 
 (**
   Description:
-    ProbDistr.compute_pr is a congruence relation.
-  eg : ProbDistr.equiv_event d1 d2 -> ProbDistr.compute_pr d1 = ProbDistr.compute_pr d2
+    ProbDistr.compute_pr is a congruence relation under ProbDistr.equiv
+
+  i.e. : 
+    ProbDistr.equiv_event d1 d2 -> 
+      ProbDistr.compute_pr d1 = ProbDistr.compute_pr d2
 *)
 #[export] Instance ProbDistr_compute_pr_congr:
   Proper (ProbDistr.equiv_event ==> Sets.equiv) ProbDistr.compute_pr.
@@ -676,6 +665,7 @@ Proof.
 Qed.
 (**Admitted.  Level 1 *)
 
+
 (*********************************************************)
 (**                                                      *)
 (** Probability Monad                                    *)
@@ -685,6 +675,7 @@ Qed.
 Module ProbMonad.
 
 Record Legal {A: Type} (f: Distr A -> Prop): Prop := {
+  (* exists a unique legal Distr d in f *)
   Legal_exists: exists d, d ∈ f;
   Legal_legal: forall d, d ∈ f -> ProbDistr.legal d;
   Legal_unique: forall d1 d2, d1 ∈ f -> d2 ∈ f -> ProbDistr.equiv d1 d2;
@@ -920,6 +911,29 @@ Proof.
   exists r, d.
   tauto.
 Qed.
+
+(*
+  Name: compute_pr_unique
+  Property: Auxiliary Theorem
+  Description:
+    ProbMonad verson of ProbDistr_comput_pr_unique.
+*)
+
+Theorem compute_pr_unique: 
+  forall f r1 r2,
+  ProbMonad.compute_pr f r1 -> 
+  ProbMonad.compute_pr f r2 -> 
+  r1 = r2.
+Proof.
+  intros.
+  unfold ProbMonad.compute_pr in *.
+  destruct H as [d1 [H1a H1b]].
+  destruct H0 as [d2 [H2a H2b]].
+  pose proof (f.(legal).(Legal_unique) d1 d2 H1a H2a) as H_unique.
+  specialize (ProbDistr_compute_pr_congr d1 d2).
+Qed.
+
+
 
 #[export] Instance ProbMonad_imply_event_refl:
   Reflexive ProbMonad.imply_event.
