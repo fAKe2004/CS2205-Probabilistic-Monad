@@ -116,15 +116,62 @@ Admitted. (** Level 2 *)
 Admitted. (** Level 2 *)
 ```
 # Auxiliary Theorem
-1. ProbDistr_equiv_equiv_event
+##### 1. ProbDistr_equiv_equiv_event
 
-Description:
+- Description:
 for any two distributions d1 d2, if d1 d2 are equivalent, then d1 d2 are equivalent in event.
 ```coq
 Theorem ProbDistr_equiv_equiv_event:
   forall (d1 d2: Distr Prop),
     ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
 ```
+
+##### 2.ProbDistr_biliteral_imply_event_iif_equiv_event
+
+- Description:
+imply_event d1 d2 /\ imply_event d2 d1 <-> equiv_event d1 d2
+
+```coq
+Theorem ProbDistr_biliteral_imply_event_iif_equiv_event:
+  forall d1 d2,
+    (ProbDistr.imply_event d1 d2 /\ ProbDistr.imply_event d2 d1) <-> ProbDistr.equiv_event d1 d2.
+```
+
+##### 3.compute_pr_unique
+  result of compute_pr is uniuqe for ProbMonad.
+  (a similar version exists for ProbDistr)
+```coq
+Theorem compute_pr_unique: 
+  forall f r1 r2,
+  ProbMonad.compute_pr f r1 -> 
+  ProbMonad.compute_pr f r2 -> 
+  r1 = r2.
+```
+
+##### 4.Forall2_equiv_g1_g2:
+  Apply forall a:A, g1 a == g2 a into a Forall2 form.
+
+```coq
+Lemma Forall2_equiv_g1_g2:
+  forall (A B : Type) (d1 : Distr A) (d2 : list (R * Distr B)) (g1 g2 : A -> ProbMonad.M B),
+    (forall a : A, g1 a == g2 a) ->
+    Forall2 (fun (a : A) '(r, d) => r = d1.(prob) a /\ d ∈ (g1 a).(distr)) d1.(pset) d2 ->
+    Forall2 (fun (a0 : A) '(r, d) => r = d1.(prob) a0 /\ d ∈ (g2 a0).(distr)) d1.(pset) d2.
+```
+
+##### 5.is_det_compute_pr_01
+  If d is a legal(to ensuer prob $\ge$ 0) deterministc distribution of Prop P. 
+  Then compute_pr d = $\begin{cases}0&\neg P \\ 1 & P \end{cases}$
+
+```coq
+Theorem is_det_compute_pr_01:
+  forall P d,
+    ProbDistr.is_det P d ->
+    ((~P -> ProbDistr.compute_pr d 0%R) /\
+    (P-> ProbDistr.compute_pr d 1%R)).
+```
+
+---
 # Note:
 
 - fAKe: 要求：对每个 Theorem/核心 Definition 写 description 记录其直观含义。对辅助引理，注意命名规范，并且标注 "Auxiliary Theorem".
