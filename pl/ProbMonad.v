@@ -12,6 +12,65 @@ Local Open Scope list.
 (* Adds on *)
 Require Import Classical.
 
+(***
+  eq_dec adds-on
+***)
+
+(**
+  Name: 
+    eq_dec
+
+  Property:
+    Axiom
+  
+  Description:
+    decidable equality for any type A.
+
+  Note: 
+    when need to check two elements are equal or not, you can use this function to destruct the result.
+    eg : destruct (eq_dec a b) as [H_equal | H_neq].
+*)
+Axiom eq_dec: forall {A: Type} (x y: A), {x = y} + {x <> y}.
+
+(*
+  Name: 
+    eq_dec_refl
+
+  Property:
+    Auxilary Theorem
+  
+  Description:
+    eq_dec is a reflexive realtion and the result of eq_dec a a = left eq_refl.
+*)
+Lemma eq_dec_refl: forall {A: Type} (a: A), eq_dec a a = left eq_refl.
+Proof.
+  intros A a.
+  destruct (eq_dec a a).
+  - f_equal.
+    apply proof_irrelevance.
+  - contradiction.
+Qed.
+
+(*
+  Name: 
+    not_equal_symmetry
+
+  Property:
+    Auxilary Theorem
+  
+  Description:
+    not_equl for Type A is symmetric , if x <> y, then y <> x.
+*)
+Lemma not_equal_symmetry : forall (A : Type) (x y : A), x <> y -> y <> x.
+Proof.
+  intros A x y H.
+  unfold not in *.
+  intros H1.
+  apply H.
+  rewrite H1.
+  reflexivity.
+Qed.
+
 Theorem equiv_in_domain:
   forall {A B: Type} (f: A -> B) (R: B -> B -> Prop),
     Equivalence R ->
@@ -351,6 +410,104 @@ Proof.
 Qed.
 
 
+Lemma Permutation_in:
+  forall {A: Type} (l1 l2: list A) (x: A),
+    Permutation l1 l2 -> In x l1 -> In x l2.
+Admitted.
+  
+Theorem Permutation_sum_eq:
+  forall (l1 l2: list R),
+    Permutation l1 l2 ->
+    sum l1 = sum l2.
+Proof.
+  intros l1 l2 Hperm.
+  induction Hperm.
+  - reflexivity.
+  - simpl. rewrite IHHperm. reflexivity.
+  - simpl. 
+    repeat rewrite <- Rplus_assoc.
+    rewrite (Rplus_comm y x).
+    reflexivity.
+  - rewrite IHHperm1. assumption.
+Qed.
+
+Lemma Permutation_sum_map_eq:
+  forall (l1 l2: list Prop) (f1 f2: Prop -> R),
+    Permutation l1 l2 ->
+    (forall x, f1 x = f2 x) ->
+    sum (map f1 l1) = sum (map f2 l2).
+Admitted.
+  
+
+(*
+  Name: ProbDistr_equiv_equiv_event
+  Property: Auxiliary Theorem
+  Description:
+    for any two distributions d1 d2,
+      if d1 equiv d2, then d1 equiv_event d2.
+*)
+Theorem ProbDistr_equiv_equiv_event:
+  forall (d1 d2: Distr Prop),
+    ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
+Proof.
+  intros.
+  destruct H as [H8 H9].
+  unfold ProbDistr.equiv_event.
+  destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
+  specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
+  destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
+  specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
+  destruct H2 as [H2a H2b].
+  destruct H4 as [H4a H4b].
+  assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+    intros.
+    specialize (H2b P).
+    specialize (H1 P).
+    rewrite <-H1.
+    tauto.
+  }
+  assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
+    intros.
+    specialize (H4b P).
+    specialize (H3 P).
+    rewrite <-H3.
+    tauto.
+  }
+  exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
+  split; [ | split].
+  - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
+  - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
+  - assert (Permutation l2 l4) as Hperm. {
+      apply NoDup_Permutation; [exact H2a | exact H4a |].
+      intros x.
+      specialize (H2c x).
+      specialize (H4c x).
+      split; intros.
+      + apply H2c in H.
+
+        apply H4c.
+        split.
+        2:{apply H. }
+        -- apply Permutation_in with (l1:=d1.(pset)).
+          --- exact H9.
+          --- apply H.
+      + apply H4c in H.
+
+      apply H2c.
+      split.
+      2:{apply H. }
+      -- apply Permutation_in with (l1:=d2.(pset)).
+        --- rewrite H9. reflexivity.
+        --- apply H.
+    }
+    unfold sum_prob.
+    apply Permutation_sum_map_eq.
+    exact Hperm.
+    apply H8.
+Qed.
+
+
+
 
 (*
   Name: 
@@ -379,21 +536,7 @@ Proof.
     tauto.
 Qed. *)
 
-Theorem Permutation_sum_eq:
-  forall (l1 l2: list R),
-    Permutation l1 l2 ->
-    sum l1 = sum l2.
-Proof.
-  intros l1 l2 Hperm.
-  induction Hperm.
-  - reflexivity.
-  - simpl. rewrite IHHperm. reflexivity.
-  - simpl. 
-    repeat rewrite <- Rplus_assoc.
-    rewrite (Rplus_comm y x).
-    reflexivity.
-  - rewrite IHHperm1. assumption.
-Qed.
+
 
 (*
   Description:
@@ -424,24 +567,6 @@ Proof.
   }
   apply (Permutation_sum_eq (map d.(prob) l1) (map d.(prob) l2) H_perm').
 Qed.
-
-(*
-  Name: ProbDistr_compute_pr_congr_weak
-  Property: Auxiliary Theorem
-  Descitption:
-    equiv d1 d2 -> compute_pr d1 == compute_pr d2.
-*)
-Theorem ProbDistr_compute_pr_congr_weak:
-  forall (d1 d2 : Distr Prop) (r1 r2 : R), 
-    ProbDistr.equiv d1 d2 -> 
-    ProbDistr.compute_pr d1 r1 ->
-    ProbDistr.compute_pr d2 r2 ->
-    r1 = r2.
-Proof.
-  intros.
-  unfold ProbDistr.equiv in *.
-  destruct H as [Ha Hb].
-  unfold 
 
 
 (*
@@ -693,60 +818,6 @@ Arguments legal {_} _.
 Definition __ret {A: Type} (a: A) : Distr A -> Prop :=
   ProbDistr.is_det a.
 
-(**
-  Name: 
-    eq_dec
-
-  Property:
-    Axiom
-  
-  Description:
-    decidable equality for any type A.
-
-  Note: 
-    when need to check two elements are equal or not, you can use this function to destrcut the result.
-    eg : destruct (eq_dec a b) as [H_equal | H_neq].
-*)
-Axiom eq_dec: forall {A: Type} (x y: A), {x = y} + {x <> y}.
-
-(*
-  Name: 
-    eq_dec_refl
-
-  Property:
-    Auxilary Theorem
-  
-  Description:
-    eq_dec is a reflexive realtion and the result of eq_dec a a = left eq_refl.
-*)
-Lemma eq_dec_refl: forall {A: Type} (a: A), eq_dec a a = left eq_refl.
-Proof.
-  intros A a.
-  destruct (eq_dec a a).
-  - f_equal.
-    apply proof_irrelevance.
-  - contradiction.
-Qed.
-
-(*
-  Name: 
-    not_equal_symmetry
-
-  Property:
-    Auxilary Theorem
-  
-  Description:
-    not_equl for Type A is symmetric , if x <> y, then y <> x.
-*)
-Lemma not_equal_symmetry : forall (A : Type) (x y : A), x <> y -> y <> x.
-Proof.
-  intros A x y H.
-  unfold not in *.
-  intros H1.
-  apply H.
-  rewrite H1.
-  reflexivity.
-Qed.
 
 (**
   Description:
@@ -848,7 +919,7 @@ Lemma __bind_legal {A B: Type}:
       Legal f ->
       (forall a, Legal (g a)) ->
       Legal (__bind f g).
-Admitted.
+Admitted. 
 
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
   {|
@@ -930,18 +1001,51 @@ Proof.
   destruct H as [d1 [H1a H1b]].
   destruct H0 as [d2 [H2a H2b]].
   pose proof (f.(legal).(Legal_unique) d1 d2 H1a H2a) as H_unique.
-  specialize (ProbDistr_compute_pr_congr d1 d2).
+  specialize (ProbDistr_equiv_equiv_event d1 d2 H_unique).
+  unfold ProbDistr.equiv_event.
+  intros.
+  destruct H as [r1' H].
+  destruct H as [r2' H].
+  destruct H as [H1b' [H2b' H_eq]].
+  specialize (ProbDistr_compute_pr_unique d1 r1 r1' H1b H1b') as H_unique1.
+  specialize (ProbDistr_compute_pr_unique d2 r2 r2' H2b H2b') as H_unique2.
+  subst r1.
+  subst r2.
+  tauto.
 Qed.
-
-
 
 #[export] Instance ProbMonad_imply_event_refl:
   Reflexive ProbMonad.imply_event.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Reflexive.
+  intros x.
+  unfold ProbMonad.imply_event.
+  destruct (ProbMonad.Legal_exists _ x.(legal)) as [d1 ?].
+  exists d1, d1.
+  split.
+  + exact H.
+  + split.
+    - exact H.
+    - apply ProbDistr_imply_event_refl.
+Qed.
+(**Admitted. Level 2 *)
 
 Theorem ProbMonad_imply_event_refl_setoid:
   forall d1 d2, ProbMonad.equiv_event d1 d2 -> ProbMonad.imply_event d1 d2.
-Admitted. (** Level 2 *)
+Proof.
+  intros.
+  unfold ProbMonad.equiv_event in H.
+  destruct H as [r1 [r2 [H1 [H2 H3]]]].
+  unfold ProbMonad.imply_event.
+  exists r1, r2.
+  split.
+  - exact H1.
+  - split.
+    + exact H2.
+    + apply ProbDistr_imply_event_refl_setoid.
+      exact H3.
+Qed.
+(**Admitted.  Level 2 *)
 
 #[export] Instance ProbMonad_equiv_equiv {A: Type}:
   Equivalence (@ProbMonad.equiv A).
@@ -953,7 +1057,28 @@ Qed.
 
 #[export] Instance ProbMonad_imply_event_trans:
   Transitive ProbMonad.imply_event.
-Admitted. (** Level 2 *)
+Proof.
+  intros x y z H1 H2.
+  unfold ProbMonad.imply_event in *.
+  destruct H1 as [d1 [d2 [H3 [H4 H5]]]].
+  destruct H2 as [d2' [d3 [H6 [H7 H8]]]].
+  exists d1, d3.
+  split.
+  - exact H3. 
+  - split.
+    + exact H7.
+    + pose proof y.(legal).(Legal_unique) as H9.
+      specialize (H9 d2 d2' H4 H6).
+      apply ProbDistr_imply_event_trans with d2.
+      * exact H5.
+      * apply ProbDistr_imply_event_trans with d2'.
+      2:{ exact H8. }
+      apply ProbDistr_imply_event_refl_setoid.
+      apply ProbDistr_equiv_equiv_event in H9.
+      exact H9.
+Qed.
+
+(**Admitted. Level 2 *)
 
 #[export] Instance ProbMonad_equiv_event_equiv:
   Equivalence ProbMonad.equiv_event.
@@ -990,16 +1115,57 @@ Admitted. (** Level 2 *)
     (@bind _ ProbMonad A Prop).
 Admitted. (** Level 2 *)
 
+(* TODO *)
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
           pointwise_relation _ ProbMonad.equiv_event ==>
           ProbMonad.equiv_event)
     (@bind _ ProbMonad A Prop).
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  intros fx fy H_eq_f gx gy H_eq_g.
+  unfold ProbMonad.equiv_event in *.
+  unfold pointwise_relation in H_eq_g.
+  eexists.
+  eexists.
+  repeat split.
+Admitted.
+(* Admitted. * Level 2 *)
+
+Theorem is_det_compute_pr_01:
+  
+
+
 
 #[export] Instance ProbMonad_ret_mono_event:
   Proper (Basics.impl ==> ProbMonad.imply_event) ret.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  unfold Basics.impl.
+  intros.
+  unfold ProbMonad.imply_event.
+  pose proof (ret x).(legal).(Legal_exists) as [d1 ?].
+  pose proof (ret y).(legal).(Legal_exists) as [d2 ?].
+  exists d1.
+  exists d2.
+  split; [tauto | ].
+  split; [tauto | ].
+  unfold ret in *.
+  simpl in *.
+  unfold ProbMonad.__ret, ProbDistr.is_det in *.
+  destruct H0 as [H1a [H1b H1c]].
+  destruct H1 as [H2a [H2b H2c]].
+  unfold ProbDistr.imply_event.
+
+  asser
+  destruct (classic x) as [Hx | Hnx].
+  - exists 1%R, 1%R.
+    split.
+    assert (
+      forall d: Distr Prop,
+        forall a: Prop,
+    )
+(* Admitted. * Level 2 *)
 
 #[export] Instance ProbMonad_ret_congr_event:
   Proper (iff ==> ProbMonad.equiv_event) ret.
