@@ -409,6 +409,34 @@ Proof.
   exact H3.
 Qed.
 
+    
+(* 
+  Description:
+    compute_pr is non negative if d is legal
+*)
+
+Theorem ProbDistr_compute_pr_nonneg: forall (d : Distr Prop) (r: R),
+  ProbDistr.legal d -> (ProbDistr.compute_pr d r) ->
+  (r >= 0)%R.
+Proof.
+  intros.
+  destruct H0 as [l [H1 [H2 H3]]].
+  clear H1 H2.
+  revert H3.
+  revert r.
+  unfold sum_prob.
+  induction l as [| a tl IHl]; simpl in *; intros.
+  - lra.
+  - specialize (IHl (sum (map d.(prob) tl))).
+    assert (H_ge0_tl: (sum (map d.(prob) tl) >= 0)%R). {
+      apply IHl.
+      reflexivity.
+    }
+    subst r.
+    specialize (ProbDistr.legal_nonneg d H a) as H_ge0_a.
+    lra.
+Qed.
+
 
 Lemma Permutation_in:
   forall {A: Type} (l1 l2: list A) (x: A),
@@ -508,7 +536,6 @@ Qed.
 
 
 
-
 (*
   Name: 
     no_dup_in_equiv_Permutation:
@@ -567,6 +594,7 @@ Proof.
   }
   apply (Permutation_sum_eq (map d.(prob) l1) (map d.(prob) l2) H_perm').
 Qed.
+
 
 
 (*
@@ -791,6 +819,39 @@ Qed.
 (**Admitted.  Level 1 *)
 
 
+(*
+  Name: ProbDistr_biliteral_imply_event_iif_equiv_event:
+  Property: Auxiliary Theorem.
+  Description:
+    biliteral imply event <-> equiv_event.
+*)
+Theorem ProbDistr_biliteral_imply_event_iif_equiv_event:
+  forall d1 d2,
+    (ProbDistr.imply_event d1 d2 /\ ProbDistr.imply_event d2 d1) <-> ProbDistr.equiv_event d1 d2.
+Proof.
+  intros.
+  split.
+  - intros [H1 H2].
+    unfold ProbDistr.equiv_event.
+    destruct H1 as [r1 [r2 [Hcp1 [Hcp2 Hrel]]]].
+    destruct H2 as [r2' [r1' [Hcp2' [Hcp1' Hrel']]]].
+    pose proof (ProbDistr_compute_pr_unique d1 r1 r1' Hcp1 Hcp1') as Heq_r1.
+    subst r1'.
+    pose proof (ProbDistr_compute_pr_unique d2 r2 r2' Hcp2 Hcp2') as Heq_r2.
+    subst r2'.
+    exists r1, r2.
+    split; [exact Hcp1 | split; [exact Hcp2 | lra]].
+  - intros H.
+    unfold ProbDistr.imply_event.
+    destruct H as [r1 [r2 [Hcp1 [Hcp2 Heq]]]].
+    split. 
+    + exists r1, r2.
+      repeat split; [exact Hcp1 | exact Hcp2 | lra].
+    + exists r2, r1.
+      repeat split; [exact Hcp2 | exact Hcp1 | lra].
+Qed.
+
+
 (*********************************************************)
 (**                                                      *)
 (** Probability Monad                                    *)
@@ -987,7 +1048,7 @@ Qed.
   Name: compute_pr_unique
   Property: Auxiliary Theorem
   Description:
-    ProbMonad verson of ProbDistr_comput_pr_unique.
+    ProbMonad verson of ProbDistr_compute_pr_unique.
 *)
 
 Theorem compute_pr_unique: 
@@ -1132,10 +1193,63 @@ Proof.
 Admitted.
 (* Admitted. * Level 2 *)
 
+(*
+  Name: is_det_compute_pr_01:
+  Property: Auxiliary Theorem
+  Description:
+    for any d s.t. is_det P d,
+      compute_pr d is 0 if P is false
+                   is 1 if P is true
+*)
 Theorem is_det_compute_pr_01:
-  
-
-
+  forall P d,
+    ProbDistr.is_det P d ->
+    ((~P -> ProbDistr.compute_pr d 0%R) /\
+    (P-> ProbDistr.compute_pr d 1%R)).
+Proof.
+  intros.
+  unfold ProbDistr.is_det in H.
+  destruct H as [Ha [Hb Hc]].
+  unfold ProbDistr.compute_pr.
+  split.
+  - intros.
+    exists [].
+    split.
+    + constructor.
+    + split.
+      * intro Q.
+        destruct (eq_dec P Q) as [eq | neq].
+        -- subst.
+           split.
+           ++ simpl; tauto.
+           ++ intros.
+              destruct H0 as [H0l H0r].
+              tauto.
+        -- split.
+           ++ simpl; tauto.
+           ++ intros.
+              destruct H0 as [H0l H0r].
+              rewrite Ha in H0l.
+              simpl in H0l.
+              tauto.
+      * unfold sum_prob.
+        simpl.
+        reflexivity.
+  - intros.
+    exists [P].
+    split.
+    + constructor; [simpl; tauto | constructor].
+    + split.
+      * intro Q.
+        destruct (eq_dec P Q) as [eq | neq].
+        -- subst.
+           split; rewrite Ha; [tauto | tauto].
+        -- split; rewrite Ha; [simpl; tauto | tauto].
+      * unfold sum_prob.
+        simpl.
+        rewrite Hb.
+        lra.
+Qed.
 
 #[export] Instance ProbMonad_ret_mono_event:
   Proper (Basics.impl ==> ProbMonad.imply_event) ret.
@@ -1152,24 +1266,82 @@ Proof.
   split; [tauto | ].
   unfold ret in *.
   simpl in *.
-  unfold ProbMonad.__ret, ProbDistr.is_det in *.
-  destruct H0 as [H1a [H1b H1c]].
-  destruct H1 as [H2a [H2b H2c]].
-  unfold ProbDistr.imply_event.
-
-  asser
+  specialize (ProbMonad.__ret_Legal y) as H_legal_y'.
+  apply H_legal_y' in H1 as H_legal_y.
+  unfold ProbMonad.__ret in *.
+  
+  specialize (is_det_compute_pr_01) as H_01.
+  specialize (H_01 x d1 H0) as H_01_x.
+  specialize (H_01 y d2 H1) as H_01_y.
+  
   destruct (classic x) as [Hx | Hnx].
   - exists 1%R, 1%R.
-    split.
-    assert (
-      forall d: Distr Prop,
-        forall a: Prop,
-    )
+
+    destruct H_01_x as [_ H_01_x].
+    apply H_01_x in Hx as H_x_prob.
+    destruct H_01_y as [_ H_01_y].
+    apply H in Hx as Hy.
+    apply H_01_y in Hy as H_y_prob.
+    repeat split; [exact H_x_prob | exact H_y_prob | lra].
+  - specialize (ProbDistr_compute_pr_exists d2) as [r2 ?].
+    exists 0%R, r2.
+    destruct H_01_x as [H_01_x _].
+    apply H_01_x in Hnx as H_x_prob.
+    repeat split; [exact H_x_prob | exact H2 |].
+    pose proof (ProbDistr_compute_pr_nonneg d2 r2 H_legal_y H2).
+    lra.
+Qed.
 (* Admitted. * Level 2 *)
 
 #[export] Instance ProbMonad_ret_congr_event:
   Proper (iff ==> ProbMonad.equiv_event) ret.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold ProbMonad.equiv_event.
+  specialize ((ret x).(legal).(Legal_exists)) as [d1 H1].
+  specialize ((ret y).(legal).(Legal_exists)) as [d2 H2].
+  exists d1, d2.
+  split; [tauto | ].
+  split; [tauto | ].
+  specialize (ProbMonad_ret_mono_event x y) as H_le'.
+  specialize (ProbMonad_ret_mono_event y x) as H_ge'.
+  unfold Basics.impl in *.
+  destruct H as [H_if H_rev_if].
+  apply H_le' in H_if as H_le.
+  apply H_ge' in H_rev_if as H_ge.
+  clear H_le' H_ge'.
+  unfold ProbMonad.imply_event in *.
+  destruct H_le as [d1' [d2' [H_le1 [H_le2 H_le3]]]].
+  destruct H_ge as [d2'' [d1'' [H_ge2 [H_ge1 H_ge3]]]].
+  pose proof ((ret x).(legal).(Legal_unique) d1 d1' H1 H_le1) as H_unique1'.
+  pose proof ((ret x).(legal).(Legal_unique) d1' d1'' H_le1 H_ge1) as H_unique1''.
+  pose proof ((ret y).(legal).(Legal_unique) d2 d2' H2 H_le2) as H_unique2'.
+  pose proof ((ret y).(legal).(Legal_unique) d2' d2'' H_le2 H_ge2) as H_unique2''.
+  pose proof (ProbDistr_compute_pr_exists d1) as [r1 Hr1].
+  pose proof (ProbDistr_compute_pr_exists d2) as [r2 Hr2].
+
+  apply ProbDistr_equiv_equiv_event in H_unique1'.
+  apply ProbDistr_equiv_equiv_event in H_unique1''.
+  apply ProbDistr_equiv_equiv_event in H_unique2'.
+  apply ProbDistr_equiv_equiv_event in H_unique2''.
+  assert (ProbDistr.imply_event d1 d2) as H_le_final. {
+    rewrite H_unique1'.
+    rewrite H_unique2'.
+    exact H_le3.
+  }
+  assert (ProbDistr.imply_event d2 d1) as H_ge_final. {
+    rewrite H_unique1'.
+    rewrite H_unique1''.
+    rewrite H_unique2'.
+    rewrite H_unique2''.
+    exact H_ge3.
+  }
+  apply ProbDistr_biliteral_imply_event_iif_equiv_event.
+  split; [exact H_le_final | exact H_ge_final].
+Qed.
+
+(* Admitted. * Level 2 *)
 
 Lemma bind_assoc:
   forall (A B C: Type)
