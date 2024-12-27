@@ -37,7 +37,7 @@ Admitted. (** Level 1 *)
 
 ### level 2 partition
 
-15-17 Mikeayaka
+15-17 Mikeayaka (Done)
 
 ```coq
 #[export] Instance ProbMonad_imply_event_refl:
@@ -115,7 +115,16 @@ Admitted. (** Level 2 *)
   Proper (iff ==> ProbMonad.equiv_event) ret.
 Admitted. (** Level 2 *)
 ```
+# Auxiliary Theorem
+1. ProbDistr_equiv_equiv_event
 
+Description:
+for any two distributions d1 d2, if d1 d2 are equivalent, then d1 d2 are equivalent in event.
+```coq
+Theorem ProbDistr_equiv_equiv_event:
+  forall (d1 d2: Distr Prop),
+    ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
+```
 # Note:
 
 - fAKe: 要求：对每个 Theorem/核心 Definition 写 description 记录其直观含义。对辅助引理，注意命名规范，并且标注 "Auxiliary Theorem".

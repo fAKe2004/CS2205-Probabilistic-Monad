@@ -379,14 +379,6 @@ Proof.
   exact H3.
 Qed.
 
-
-Lemma Permutation_in:
-  forall {A: Type} (l1 l2: list A) (x: A),
-    Permutation l1 l2 -> In x l1 -> In x l2.
-Admitted.
-  
-  
-  
 Theorem Permutation_sum_eq:
   forall (l1 l2: list R),
     Permutation l1 l2 ->
@@ -408,68 +400,93 @@ Lemma Permutation_sum_map_eq:
     Permutation l1 l2 ->
     (forall x, f1 x = f2 x) ->
     sum (map f1 l1) = sum (map f2 l2).
-Admitted.
+    Proof.
+    intros.
+    apply Permutation_sum_eq.
+    specialize (Permutation_map f1 H).
+    intros.
+    apply Permutation_trans with (map f1 l2).
+    + exact H1.
+    +
+      clear H1.
+      clear H.
+      induction l2.
+      * simpl. reflexivity.
+      * simpl.
+        rewrite IHl2.
+        specialize (H0 a).
+        rewrite H0.
+        reflexivity.
+  Qed.
 
-
-Theorem equiv_equiv_event:
+(**
+  Name: ProbDistr_equiv_equiv_event
+  Property: Auxiliary Theorem
+  Description:
+    for any two distributions d1 d2,
+      if d1 d2 are equivalent, then d1 d2 are equivalent in event.
+    i.e., 
+      for any two distributions d1 d2,
+        ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
+*)
+Theorem ProbDistr_equiv_equiv_event:
   forall (d1 d2: Distr Prop),
     ProbDistr.equiv d1 d2 -> ProbDistr.equiv_event d1 d2.
-Proof.
-  intros.
-  destruct H as [H8 H9].
-  unfold ProbDistr.equiv_event.
-  destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
-  specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
-  destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
-  specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
-  destruct H2 as [H2a H2b].
-  destruct H4 as [H4a H4b].
-  assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+    Proof.
     intros.
-    specialize (H2b P).
-    specialize (H1 P).
-    rewrite <-H1.
-    tauto.
-  }
-  assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
-    intros.
-    specialize (H4b P).
-    specialize (H3 P).
-    rewrite <-H3.
-    tauto.
-  }
-  exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
-  split; [ | split].
-  - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
-  - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
-  - assert (Permutation l2 l4) as Hperm. {
-      apply NoDup_Permutation; [exact H2a | exact H4a |].
-      intros x.
-      specialize (H2c x).
-      specialize (H4c x).
-      split; intros.
-      + apply H2c in H.
-
-        apply H4c.
+    destruct H as [H8 H9].
+    unfold ProbDistr.equiv_event.
+    destruct (filter_true_prop_list_exists d1.(pset)) as [l1 H1].
+    specialize (no_dup_in_equiv_list_exists l1) as [l2 H2].
+    destruct (filter_true_prop_list_exists d2.(pset)) as [l3 H3].
+    specialize (no_dup_in_equiv_list_exists l3) as [l4 H4].
+    destruct H2 as [H2a H2b].
+    destruct H4 as [H4a H4b].
+    assert (forall P: Prop, In P l2 <-> In P d1.(pset) /\ P) as H2c. {
+      intros.
+      specialize (H2b P).
+      specialize (H1 P).
+      rewrite <-H1.
+      tauto.
+    }
+    assert (forall P: Prop, In P l4 <-> In P d2.(pset) /\ P) as H4c. {
+      intros.
+      specialize (H4b P).
+      specialize (H3 P).
+      rewrite <-H3.
+      tauto.
+    }
+    exists (sum_prob l2 d1.(prob)), (sum_prob l4 d2.(prob)).
+    split; [ | split].
+    - exists l2; split; [exact H2a | split; [exact H2c | reflexivity]].
+    - exists l4; split; [exact H4a | split; [exact H4c | reflexivity]].
+    - assert (Permutation l2 l4) as Hperm. {
+        apply NoDup_Permutation; [exact H2a | exact H4a |].
+        intros x.
+        specialize (H2c x).
+        specialize (H4c x).
+        split; intros.
+        + apply H2c in H.
+  
+          apply H4c.
+          split.
+          2:{apply H. }
+          -- apply Permutation_in with (l:=d1.(pset)).
+            --- exact H9.
+            --- apply H.
+        + apply H4c in H.
+        apply H2c.
         split.
         2:{apply H. }
-        -- apply Permutation_in with (l1:=d1.(pset)).
-          --- exact H9.
+        -- apply Permutation_in with (l:=d2.(pset)).
+          --- rewrite H9. reflexivity.
           --- apply H.
-      + apply H4c in H.
-
-      apply H2c.
-      split.
-      2:{apply H. }
-      -- apply Permutation_in with (l1:=d2.(pset)).
-        --- rewrite H9. reflexivity.
-        --- apply H.
-    }
-    unfold sum_prob.
-    apply Permutation_sum_map_eq.
-    exact Hperm.
-    apply H8.
-Qed.
+      }
+      unfold sum_prob.
+      apply Permutation_sum_map_eq.
+      exact Hperm.
+      apply H8.
+  Qed.
 
 
 
@@ -1085,7 +1102,7 @@ Proof.
       * apply ProbDistr_imply_event_trans with d2'.
       2:{ exact H8. }
       apply ProbDistr_imply_event_refl_setoid.
-      apply equiv_equiv_event in H9.
+      apply ProbDistr_equiv_equiv_event in H9.
       exact H9.
 Qed.
 
@@ -1132,8 +1149,8 @@ Proof.
       exact Hf2.
       exact Hd2'.
     }
-    specialize (equiv_equiv_event d1 d1' Himpl_eq) as Himpl_eq_event.
-    specialize (equiv_equiv_event d2 d2' Himpl_eq') as Himpl_eq_event'.
+    specialize (ProbDistr_equiv_equiv_event d1 d1' Himpl_eq) as Himpl_eq_event.
+    specialize (ProbDistr_equiv_equiv_event d2 d2' Himpl_eq') as Himpl_eq_event'.
     specialize (ProbDistr_imply_event_congr d1 d1' Himpl_eq_event d2 d2' Himpl_eq_event') as Himpl_eq_event_congr.
     apply Himpl_eq_event_congr in Himpl'.
     unfold ProbDistr.imply_event in Himpl'.
