@@ -1305,12 +1305,86 @@ Proof.
       * exact H5. 
 Qed.    
 
+
+Theorem Permutation_imply_event_sum_distr_imply_event:
+  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+    (exists L1',
+      Permutation L1 L1' /\
+      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1' L2) ->
+    ProbDistr.sum_distr L1 ds1 ->
+    ProbDistr.sum_distr L2 ds2 ->
+    ProbDistr.imply_event ds1 ds2.
+Proof.
+  intros.
+Admitted.
+
+
+Theorem Forall2_imply_event_sum_distr_imply_event:
+  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+     Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1 L2
+  -> ProbDistr.sum_distr L1 ds1 
+  -> ProbDistr.sum_distr L2 ds2
+  -> ProbDistr.imply_event ds1 ds2.
+Admitted.
+
+Theorem Permutation_sum_distr_equiv:
+  forall (L1 L1' : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+  Permutation L1 L1'
+  -> ProbDistr.sum_distr L1 ds1
+  -> ProbDistr.sum_distr L1' ds2
+  -> ProbDistr.equiv ds1 ds2.
+Admitted.
+
+
+(*
+  Description:
+    bind operation preserves the imply_event relation 
+    when the first argument is equivalent and the second argument is monotonic.
+*)
+
 #[export] Instance ProbMonad_bind_mono_event (A: Type):
   Proper (ProbMonad.equiv ==>
           pointwise_relation _ ProbMonad.imply_event ==>
           ProbMonad.imply_event)
     (@bind _ ProbMonad A Prop).
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  intros fx fy H_eq_f gx gy H_eq_g.
+  unfold ProbMonad.imply_event.
+  
+  (* Get distributions from fx and fy using Legal_exists *)
+  destruct (fx.(legal).(Legal_exists)) as [dx Hdx].
+  destruct (fy.(legal).(Legal_exists)) as [dy Hdy].
+  
+  (* Since fx and fy are equivalent, dx and dy are equivalent *)
+  assert (ProbDistr.equiv dx dy) as Heq_d. {
+    apply fx.(legal).(Legal_unique) with (d2 := dy).
+    - exact Hdx.
+    - apply H_eq_f.
+      exact Hdy.
+  }
+
+  (* For each a in dx.(pset), get distributions from gx a and gy a *)
+  assert (forall a, exists dxa dya,
+    dxa ∈ (gx a).(distr) /\ 
+    dya ∈ (gy a).(distr) /\ 
+    ProbDistr.imply_event dxa dya) as H_g_dist. {
+    intros a.
+    specialize (H_eq_g a).
+    unfold ProbMonad.imply_event in H_eq_g.
+    exact H_eq_g.
+  }
+
+  simpl.
+  unfold ProbMonad.__bind.
+  eexists.
+  eexists.
+
+  sets_unfold.
+  split.
+
+
+Admitted.
 
 (* TODO *)
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
