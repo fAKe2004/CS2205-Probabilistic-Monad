@@ -54,22 +54,7 @@ Admitted. (** Level 2 *)
 
 ```
 
-18-21 Zicong Zhang
-
-```coq
-#[export] Instance ProbMonad_equiv_event_equiv:
-  Equivalence ProbMonad.equiv_event.
-Admitted. (** Level 2 *)
-
-#[export] Instance ProbMonad_imply_event_congr:
-  Proper (ProbMonad.equiv_event ==>
-          ProbMonad.equiv_event ==> iff) ProbMonad.imply_event.
-Admitted. (** Level 2 *)
-
-#[export] Instance compute_pr_congr:
-  Proper (ProbMonad.equiv_event ==> Sets.equiv) ProbMonad.compute_pr.
-Admitted. (** Level 2 *)
-```
+18-21 Zicong Zhang (Done)
 
 22-24 Andylinx
 
@@ -115,11 +100,14 @@ Admitted. (** Level 2 *)
   Proper (iff ==> ProbMonad.equiv_event) ret.
 Admitted. (** Level 2 *)
 ```
+
 # Auxiliary Theorem
+
 ##### 1. ProbDistr_equiv_equiv_event
 
 - Description:
-for any two distributions d1 d2, if d1 d2 are equivalent, then d1 d2 are equivalent in event.
+  for any two distributions d1 d2, if d1 d2 are equivalent, then d1 d2 are equivalent in event.
+
 ```coq
 Theorem ProbDistr_equiv_equiv_event:
   forall (d1 d2: Distr Prop),
@@ -129,7 +117,7 @@ Theorem ProbDistr_equiv_equiv_event:
 ##### 2.ProbDistr_biliteral_imply_event_iif_equiv_event
 
 - Description:
-imply_event d1 d2 /\ imply_event d2 d1 <-> equiv_event d1 d2
+  imply_event d1 d2 /\ imply_event d2 d1 <-> equiv_event d1 d2
 
 ```coq
 Theorem ProbDistr_biliteral_imply_event_iif_equiv_event:
@@ -138,18 +126,21 @@ Theorem ProbDistr_biliteral_imply_event_iif_equiv_event:
 ```
 
 ##### 3.compute_pr_unique
-  result of compute_pr is uniuqe for ProbMonad.
-  (a similar version exists for ProbDistr)
+
+result of compute_pr is uniuqe for ProbMonad.
+(a similar version exists for ProbDistr)
+
 ```coq
-Theorem compute_pr_unique: 
+Theorem compute_pr_unique:
   forall f r1 r2,
-  ProbMonad.compute_pr f r1 -> 
-  ProbMonad.compute_pr f r2 -> 
+  ProbMonad.compute_pr f r1 ->
+  ProbMonad.compute_pr f r2 ->
   r1 = r2.
 ```
 
 ##### 4.Forall2_equiv_g1_g2:
-  Apply forall a:A, g1 a == g2 a into a Forall2 form.
+
+Apply forall a:A, g1 a == g2 a into a Forall2 form.
 
 ```coq
 Lemma Forall2_equiv_g1_g2:
@@ -160,8 +151,9 @@ Lemma Forall2_equiv_g1_g2:
 ```
 
 ##### 5.is_det_compute_pr_01
-  If d is a legal(to ensuer prob $\ge$ 0) deterministc distribution of Prop P. 
-  Then compute_pr d = $\begin{cases}0&\neg P \\ 1 & P \end{cases}$
+
+If d is a legal(to ensuer prob $\ge$ 0) deterministc distribution of Prop P.
+Then compute_pr d = $\begin{cases}0&\neg P \\ 1 & P \end{cases}$
 
 ```coq
 Theorem is_det_compute_pr_01:
@@ -171,7 +163,36 @@ Theorem is_det_compute_pr_01:
     (P-> ProbDistr.compute_pr d 1%R)).
 ```
 
+##### 6.eq_dec_refl
+
+eq_dec is a reflexive realtion and the result of eq_dec a a = left eq_refl.
+
+```coq
+Lemma eq_dec_refl: forall {A: Type} (a: A), eq_dec a a = left eq_refl.
+```
+
+##### 7.not_equal_symmetry
+
+not_equl for Type A is symmetric , if x <> y, then y <> x.
+
+```coq
+Lemma not_equal_symmetry : forall (A : Type) (x y : A), x <> y -> y <> x.
+```
+
+##### 7.ProbDistr_equiv_event_congr
+
+simplify the way to use transistive realtion on ProbDistr.equiv_event.
+
+```coq
+Lemma ProbDistr_equiv_event_congr :
+  forall (d1 d2 d3 : Distr Prop),
+    ProbDistr.equiv_event d1 d2 ->
+    ProbDistr.equiv_event d2 d3 ->
+    ProbDistr.equiv_event d1 d3.
+```
+
 ---
+
 # Note:
 
 - fAKe: 要求：对每个 Theorem/核心 Definition 写 description 记录其直观含义。对辅助引理，注意命名规范，并且标注 "Auxiliary Theorem".
