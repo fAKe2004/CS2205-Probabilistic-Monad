@@ -1005,14 +1005,42 @@ Proof.
   exact ex.
 Qed.
 
+
 Lemma __bind_legal {A B: Type}:
     forall (f: Distr A -> Prop) (g: A -> Distr B -> Prop),
       Legal f ->
       (forall a, Legal (g a)) ->
       Legal (__bind f g).
 Proof.
-  
-    
+  intros f g Hf Hg.
+  split.
+  - (* Legal_exists *)
+    destruct Hf as [d_f Hf].
+    destruct d_f as [d Hf_in_f].
+    specialize (Hf d) as Hff.
+    remember d.(pset) as elements.
+    induction elements.
+    + (* If d_f.(pset) is empty *)
+      exists {| 
+        ProbDistr.prob := fun _ => 0%R;
+        ProbDistr.pset := []
+      |}.
+      unfold __bind.
+      exists d, [].
+      split.
+      {
+        exact Hf_in_f.
+      }
+      split.
+      * rewrite <- Heqelements.
+        constructor.
+      * split.
+        -- reflexivity.
+        -- reflexivity.   
+    + (* If d_f.(pset) is a :: rest *)
+      (* From g a, obtain d_g(a) ∈ g a *)
+      specialize (Hg a) as [d_g H_d_g].
+      
 Admitted.
 
     
@@ -1375,14 +1403,100 @@ Proof.
     exact H_eq_g.
   }
 
-  simpl.
-  unfold ProbMonad.__bind.
-  eexists.
-  eexists.
+  (* Handle the case where dx.(pset) is empty *)
+  destruct dx.(pset) as [|first_a rest] eqn:Hpset.
+  { 
+    (* If the support is empty, define zero_distr with zero probabilities and empty pset *)
+    pose (zero_distr := 
+      {| ProbDistr.prob := (fun _ => 0%R);
+         ProbDistr.pset := (@nil Prop) |}).
 
-  sets_unfold.
-  split.
+    (* Assert that the sum of an empty list is zero_distr *)
+    assert (ProbDistr.sum_distr nil zero_distr) as Hsum_zero.
+    {
+      split.
+      - simpl. tauto.
+      - simpl. reflexivity.
+    }
 
+    (* Similarly, assert for by *)
+    assert (ProbDistr.sum_distr nil zero_distr) as Hsum_zero'.
+    {
+      split.
+      - simpl. tauto.  (* Handle pset_valid *)
+      - intros.        (* Handle prob_valid *)
+        simpl.
+        unfold zero_distr.
+        reflexivity.
+    }
+
+    (* Provide bx and by as zero_distr *)
+    exists zero_distr, zero_distr.
+    split; [| split].
+    - (* Show zero_distr is in bind fx gx *)
+      unfold bind, ProbMonad.bind.
+      simpl.
+      unfold ProbMonad.__bind.
+      exists dx, nil.
+      split; [exact Hdx |].
+      split.
+      + simpl.
+        rewrite Hpset.
+        constructor.
+      + exact Hsum_zero.
+    - (* Show zero_distr is in bind fy gy *)
+      unfold bind, ProbMonad.bind.
+      simpl.
+      unfold ProbMonad.__bind.
+      exists dy, nil.
+      split; [exact Hdy |].
+      split.
+      + unfold ProbDistr.equiv in Heq_d.
+        destruct Heq_d as [Hd1 Hd2].
+        rewrite Hpset in Hd2.
+        assert (dy.(pset) = nil).
+        { 
+          apply Permutation_nil.
+          (* apply Permutation_sym. *)
+          exact Hd2.
+        }
+        rewrite H. 
+        constructor.
+      + exact Hsum_zero'.
+    - (* Show ProbDistr.imply_event zero_distr zero_distr *)
+      apply ProbDistr_imply_event_refl.
+  }
+
+  (* Case when dx.(pset) is non-empty *)
+  (* Obtain distributions for the first element *)
+  destruct (H_g_dist first_a) as [dummy_x [dummy_y [Hdx' [Hdy' Hd']]]].
+
+  
+  (* Construct lists lx and ly of distributions maintaining implication *)
+  assert (exists lx ly,
+    length lx = length (first_a :: rest) /\
+    length ly = length (first_a :: rest) /\
+    (forall i, i < length (first_a :: rest) -> 
+      let a := nth i (first_a :: rest) first_a in
+      nth i lx dummy_x ∈ (gx a).(distr) /\
+      nth i ly dummy_y ∈ (gy a).(distr) /\ 
+      ProbDistr.imply_event (nth i lx dummy_x) (nth i ly dummy_y))) 
+  as [lx [ly [Hlen_x [Hlen_y Hl]]]].
+  {
+    induction rest as [|a l' IHl'].
+    - (* Base case: singleton list *)
+      exists [dummy_x], [dummy_y].
+      split; [reflexivity | split; [reflexivity |]].
+      intros i Hi.
+      simpl in Hi.
+      destruct i.
+      + simpl.
+        split; [exact Hdx' | split; [exact Hdy' | exact Hd']].
+      + lia.
+    - (* Inductive case *)
+  
+  
+  }
 
 Admitted.
 
