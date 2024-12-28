@@ -1176,18 +1176,211 @@ Qed.
 
 (**Admitted. Level 2 *)
 
+(**
+  Description:
+    ProbMonad.equiv_event is indeed an Equivalence relation.
+*)
 #[export] Instance ProbMonad_equiv_event_equiv:
   Equivalence ProbMonad.equiv_event.
-Admitted. (** Level 2 *)
+Proof.
+  unfold ProbMonad.equiv_event.
+  split.
+  - unfold Reflexive.
+    intros x.
+    destruct (ProbMonad.Legal_exists _ x.(legal)) as [d1 ?].
+    exists d1, d1.
+    split.
+    + exact H.
+    + split.
+      * exact H.
+      * apply ProbDistr_equiv_equiv_event.
+        apply x.(legal).(Legal_unique).
+        -- exact H.
+        -- exact H.
+  - unfold Symmetric.
+    intros x y H.
+    destruct H as [r1 [r2 [H1 [H2 H3]]]].
+    exists r2, r1.
+    split.
+    + exact H2.
+    + split.
+      * exact H1.
+      * apply ProbDistr_equiv_event_equiv.
+        exact H3.
+  - unfold Transitive.
+    intros x y z H1 H2.
+    destruct H1 as [d1 [d2 [H_d1 [H_d2 H_equiv_d1_d2]]]].
+    destruct H2 as [d2' [d3 [H_d2' [H_d3 H_equiv_d2'_d3]]]].
+    exists d1, d3.
+    split.
+    + exact H_d1.
+    + split.
+      * exact H_d3.
+      * assert (H_equiv_d2_d2': ProbDistr.equiv_event d2 d2').
+        {
+          pose proof (y.(legal).(Legal_unique) d2 d2' H_d2 H_d2') as H_equiv.
+          apply ProbDistr_equiv_equiv_event.
+          exact H_equiv.
+        }
+        unfold ProbDistr.equiv_event in H_equiv_d1_d2, H_equiv_d2'_d3, H_equiv_d2_d2'.
+        destruct H_equiv_d1_d2 as [r1 [r2 [H_r1 [H_r2 H_equiv_r1_r2]]]].
+        destruct H_equiv_d2_d2' as [r3 [r4 [H_r3 [H_r4 H_equiv_r3_r4]]]].
+        destruct H_equiv_d2'_d3 as [r5 [r6 [H_r5 [H_r6 H_equiv_r5_r6]]]].
+        unfold ProbDistr.equiv_event.
+        exists r1, r6.
+        specialize (ProbDistr_compute_pr_unique d2 r2 r3 H_r2 H_r3) as H_equiv_r2_r3.
+        specialize (ProbDistr_compute_pr_unique d2' r4 r5 H_r4 H_r5) as H_equiv_r4_r5.
+        split.
+        -- exact H_r1.
+        -- split.
+           ++ exact H_r6.
+           ++ rewrite H_equiv_r1_r2, H_equiv_r2_r3, H_equiv_r3_r4, H_equiv_r4_r5, H_equiv_r5_r6.
+              reflexivity.
+Qed.
+(** Admitted.  Level 2 *)
 
+(**
+  Name: ProbDistr_equiv_event_congr
+  Property: Auxiliary Theorem
+  Description:
+    simplify transistive realtion on ProbDistr.equiv_event.
+*)
+Lemma ProbDistr_equiv_event_congr :
+  forall (d1 d2 d3 : Distr Prop),
+    ProbDistr.equiv_event d1 d2 ->
+    ProbDistr.equiv_event d2 d3 ->
+    ProbDistr.equiv_event d1 d3.
+Proof.
+  intros.
+  transitivity d2.
+  - exact H.
+  - exact H0.
+Qed.
+
+(**
+  Description:
+    ProbMonad.imply_event is preserved under ProbMonad.equiv_event.
+    eg: x==y /\ x0==y0 -> (ProbMonad.imply_event x x0 <-> ProbMonad.imply_event y y0)
+*)
 #[export] Instance ProbMonad_imply_event_congr:
   Proper (ProbMonad.equiv_event ==>
           ProbMonad.equiv_event ==> iff) ProbMonad.imply_event.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  intros.
+  destruct H as [d1 [d2 [H_d1 [H_d2 H_equiv_d1_d2]]]].
+  destruct H0 as [d3 [d4 [H_d3 [H_d4 H_equiv_d3_d4]]]].
+  split; intros; unfold ProbMonad.imply_event in *; destruct H as [d5 [d6 [H_d5 [H_d6 H_impl]]]].
+  - exists d2, d4.
+    repeat split.
+    + exact H_d2.
+    + exact H_d4.
+    + assert (H_equiv_d1_d5: ProbDistr.equiv_event d1 d5).
+      {
+        pose proof (x.(legal).(Legal_unique) d1 d5 H_d1 H_d5) as H_equiv.
+        apply ProbDistr_equiv_equiv_event.
+        exact H_equiv.
+      }
+      assert (H_equiv_d3_d6: ProbDistr.equiv_event d3 d6).
+      {
+        pose proof (x0.(legal).(Legal_unique) d3 d6 H_d3 H_d6) as H_equiv.
+        apply ProbDistr_equiv_equiv_event.
+        exact H_equiv.
+      }
+      apply ProbDistr_equiv_event_equiv in H_equiv_d1_d2, H_equiv_d3_d6.
+      specialize (ProbDistr_equiv_event_congr d2 d1 d5 H_equiv_d1_d2 H_equiv_d1_d5) as H_equiv_d2_d5.
+      specialize (ProbDistr_equiv_event_congr d6 d3 d4 H_equiv_d3_d6 H_equiv_d3_d4) as H_equiv_d6_d4.
+      clear H_equiv_d1_d2 H_equiv_d3_d6 H_equiv_d3_d4.
+      destruct H_equiv_d2_d5 as [r1 [r2 [H_r1 [H_r2 H_equiv_r1_r2]]]].
+      destruct H_equiv_d6_d4 as [r3 [r4 [H_r3 [H_r4 H_equiv_r3_r4]]]].
+      destruct H_impl as [r5 [r6 [H_r5 [H_r6 H_impl]]]].
+      specialize (ProbDistr_compute_pr_unique d5 r2 r5 H_r2 H_r5) as H_equiv_r2_r5.
+      specialize (ProbDistr_compute_pr_unique d6 r3 r6 H_r3 H_r6) as H_equiv_r3_r6.
+      unfold ProbDistr.imply_event.
+      exists r1, r4.
+      repeat split.
+      * exact H_r1.
+      * exact H_r4.
+      * rewrite H_equiv_r1_r2, H_equiv_r2_r5, <- H_equiv_r3_r4, H_equiv_r3_r6.
+        exact H_impl.
+  - exists d1, d3.
+    repeat split.
+    + exact H_d1.
+    + exact H_d3.
+    + assert (H_equiv_d2_d5: ProbDistr.equiv_event d2 d5).
+      {
+        pose proof (y.(legal).(Legal_unique) d2 d5 H_d2 H_d5) as H_equiv.
+        apply ProbDistr_equiv_equiv_event.
+        exact H_equiv.
+      }
+      assert (H_equiv_d4_d6: ProbDistr.equiv_event d4 d6).
+      {
+        pose proof (y0.(legal).(Legal_unique) d4 d6 H_d4 H_d6) as H_equiv.
+        apply ProbDistr_equiv_equiv_event.
+        exact H_equiv.
+      }
+      specialize (ProbDistr_equiv_event_congr d1 d2 d5 H_equiv_d1_d2 H_equiv_d2_d5) as H_equiv_d1_d5.
+      specialize (ProbDistr_equiv_event_congr d3 d4 d6 H_equiv_d3_d4 H_equiv_d4_d6) as H_equiv_d3_d6.
+      clear H_equiv_d2_d5 H_equiv_d4_d6 H_equiv_d3_d4 H_equiv_d1_d2.
+      destruct H_equiv_d1_d5 as [r1 [r2 [H_r1 [H_r2 H_equiv_r1_r2]]]].
+      destruct H_equiv_d3_d6 as [r3 [r4 [H_r3 [H_r4 H_equiv_r3_r4]]]].
+      destruct H_impl as [r5 [r6 [H_r5 [H_r6 H_impl]]]].
+      specialize (ProbDistr_compute_pr_unique d5 r2 r5 H_r2 H_r5) as H_equiv_r2_r5.
+      specialize (ProbDistr_compute_pr_unique d6 r4 r6 H_r4 H_r6) as H_equiv_r4_r6.
+      unfold ProbDistr.imply_event.
+      exists r1, r3.
+      repeat split.
+      * exact H_r1.
+      * exact H_r3.
+      * rewrite H_equiv_r1_r2, H_equiv_r2_r5, H_equiv_r3_r4, H_equiv_r4_r6.
+        exact H_impl.
+Qed.
+(** Admitted.  Level 2 *)
 
+(**
+  Description:
+    ProbMonad.compute_pr is congruence under ProbMonad.equiv_event.
+    eg: x==y -> ProbMonad.compute_pr x = ProbMonad.compute_pr y
+*)
 #[export] Instance compute_pr_congr:
   Proper (ProbMonad.equiv_event ==> Sets.equiv) ProbMonad.compute_pr.
-Admitted. (** Level 2 *)
+Proof.
+  unfold Proper, respectful.
+  intros.
+  destruct H as [d1 [d2 [H_d1 [H_d2 H_equiv_d1_d2]]]].
+  split; intros; unfold ProbMonad.compute_pr in *; destruct H as [d3 [H_d3 H_pr_d3]].
+  - assert (H_equiv_d1_d3: ProbDistr.equiv_event d1 d3).
+    {
+      pose proof (x.(legal).(Legal_unique) d1 d3 H_d1 H_d3) as H_equiv.
+      apply ProbDistr_equiv_equiv_event.
+      exact H_equiv.
+    }
+    exists d2.
+    split.
+    + exact H_d2.
+    + destruct H_equiv_d1_d3 as [r1 [r2 [H_r1 [H_r2 H_equiv_r1_r2]]]].
+      destruct H_equiv_d1_d2 as [r3 [r4 [H_r3 [H_r4 H_equiv_r3_r4]]]].
+      specialize (ProbDistr_compute_pr_unique d3 a r2 H_pr_d3 H_r2) as H_equiv_a_r2.
+      specialize (ProbDistr_compute_pr_unique d1 r1 r3 H_r1 H_r3) as H_equiv_r1_r3.
+      rewrite H_equiv_a_r2, <- H_equiv_r1_r2, H_equiv_r1_r3, H_equiv_r3_r4.
+      exact H_r4.
+  - assert (H_equiv_d2_d3: ProbDistr.equiv_event d2 d3).
+    {
+      pose proof (y.(legal).(Legal_unique) d2 d3 H_d2 H_d3) as H_equiv.
+      apply ProbDistr_equiv_equiv_event.
+      exact H_equiv.
+    }
+    exists d1.
+    split.
+    + exact H_d1.
+    + destruct H_equiv_d2_d3 as [r1 [r2 [H_r1 [H_r2 H_equiv_r1_r2]]]].
+      destruct H_equiv_d1_d2 as [r3 [r4 [H_r3 [H_r4 H_equiv_r3_r4]]]].
+      specialize (ProbDistr_compute_pr_unique d3 a r2 H_pr_d3 H_r2) as H_equiv_a_r2.
+      specialize (ProbDistr_compute_pr_unique d2 r1 r4 H_r1 H_r4) as H_equiv_r1_r4.
+      rewrite H_equiv_a_r2, <- H_equiv_r1_r2, H_equiv_r1_r4, <- H_equiv_r3_r4.
+      exact H_r3.
+Qed. 
+(**Admitted.  Level 2 *)
 
 (*
   Description:
