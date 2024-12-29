@@ -179,7 +179,7 @@ not_equl for Type A is symmetric , if x <> y, then y <> x.
 Lemma not_equal_symmetry : forall (A : Type) (x y : A), x <> y -> y <> x.
 ```
 
-##### 7.ProbDistr_equiv_event_congr
+##### 8.ProbDistr_equiv_event_congr
 
 simplify the way to use transistive realtion on ProbDistr.equiv_event.
 
@@ -189,6 +189,30 @@ Lemma ProbDistr_equiv_event_congr :
     ProbDistr.equiv_event d1 d2 ->
     ProbDistr.equiv_event d2 d3 ->
     ProbDistr.equiv_event d1 d3.
+```
+
+##### 9. Permutation_concat_map_in_equiv
+-  Description:
+    Permutation L1 L2 -> In (concat (map f L1) <-> In (concat (map f L2))
+```coq
+Lemma Permutation_concat_map_in_equiv :
+  forall (A B : Type) (f : A -> list B) (L1 L2 : list A) (x : B),
+    Permutation L1 L2 ->
+    (In x (concat (map f L1)) <-> In x (concat (map f L2))).
+```
+
+#### 10. Permutation_sum_distr_equiv
+  Description:
+    Permutation L1 L1' -> sum_distr over L1 L1' is equivalent (assume legality)
+```coq
+Theorem Permutation_sum_distr_equiv:
+  forall (L1 L1' : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+  Permutation L1 L1'
+  -> ProbDistr.sum_distr L1 ds1
+  -> ProbDistr.sum_distr L1' ds2
+  -> ProbDistr.legal ds1
+  -> ProbDistr.legal ds2
+  -> ProbDistr.equiv ds1 ds2.
 ```
 
 ---

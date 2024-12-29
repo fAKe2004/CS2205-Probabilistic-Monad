@@ -224,6 +224,38 @@ Definition compute_pr (d: Distr Prop) (r: R): Prop :=
     (forall P, In P l <-> In P d.(pset) /\ P) /\
     sum_prob l d.(prob) = r.
 
+Definition compute_pr_eval(d: Distr Prop): R :=
+  sum_prob (filter (fun P: Prop =>  if eq_dec P True then true else false) d.(pset)) d.(prob).
+
+(*
+  r = compute_pr_eval d
+  then compute_pr d r
+*)
+(* Lemma compute_pr_eval_correctness:
+  forall d: Distr Prop,
+    legal d ->
+    compute_pr d (compute_pr_eval d).
+Proof.
+  intros.
+  unfold compute_pr, compute_pr_eval.
+  induction d.(pset).
+  - exists [].
+    split; simpl.
+    + constructor.
+    + split.
+      * intros.
+        split; intros.
+        -- destruct H0.
+        -- repeat destruct H0.
+      * reflexivity.
+  - destruct IHl as [l0tail IHl].
+    destruct H as [H1 H2 H3 H4].
+    destruct (eq_dec a True).
+    + exists (a::l0tail).
+      split.
+Admitted.
+     *)
+  
 
 (* updated new imply_event *)
 
@@ -1527,6 +1559,86 @@ Proof.
 Qed.    
 
 
+
+Theorem Forall2_imply_event_sum_distr_imply_event:
+  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+     Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1 L2
+  -> ProbDistr.sum_distr L1 ds1 
+  -> ProbDistr.sum_distr L2 ds2
+  -> ProbDistr.imply_event ds1 ds2.
+Proof.
+  intros.
+  induction H.
+  - unfold ProbDistr.imply_event.
+    destruct H0 as [H_pset1 H_prob1].
+    destruct H1 as [H_pset2 H_prob2].
+    exists 0%R, 0%R.
+    repeat split; [| | lra].
+Admitted.
+
+(*
+  Name: Permutation_concat_map_in_equiv
+  Property: Auxiliary Theorem
+  Description:
+    Permutation L1 L2 -> In (concat (map f L1) <-> In (concat (map f L2))
+*)
+Lemma Permutation_concat_map_in_equiv :
+  forall (A B : Type) (f : A -> list B) (L1 L2 : list A) (x : B),
+    Permutation L1 L2 ->
+    (In x (concat (map f L1)) <-> In x (concat (map f L2))).
+Proof.
+  intros A B f L1 L2 x Hperm.
+  apply Permutation_map with (f := f) in Hperm.
+  rewrite <-Hperm.
+  reflexivity.
+Qed.
+
+
+(*
+  Name: Permutation_sum_distr_equiv
+  Property: Auxiliary Theorem
+  Description:
+    Permutation L1 L1' -> sum_distr over L1 L1' is equivalent (assume legality)
+*)
+Theorem Permutation_sum_distr_equiv:
+  forall (L1 L1' : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
+  Permutation L1 L1'
+  -> ProbDistr.sum_distr L1 ds1
+  -> ProbDistr.sum_distr L1' ds2
+  -> ProbDistr.legal ds1
+  -> ProbDistr.legal ds2
+  -> ProbDistr.equiv ds1 ds2.
+Proof.
+  intros.
+  destruct H0 as [Hpset1 Hprob1].
+  destruct H1 as [Hpset2 Hprob2].
+  unfold ProbDistr.equiv.
+  destruct H2 as [H_no_dup1 _ H_pset_valid1 _].
+  destruct H3 as [H_no_dup2 _ H_pset_valid2 _].
+  assert (Permutation ds1.(pset) ds2.(pset)) as H_perm_ds1_ds2. {
+    apply NoDup_Permutation; [tauto | tauto |].
+    intro a.
+    specialize (Hpset1 a).
+    specialize (Hpset2 a).
+    rewrite Hpset1.
+    rewrite Hpset2.
+    apply Permutation_concat_map_in_equiv.
+    exact H.
+  }
+  split.
+  2 : {
+    exact H_perm_ds1_ds2.
+  }
+  intro a.
+  specialize (Hprob1 a).
+  specialize (Hprob2 a).
+  rewrite Hprob1.
+  rewrite Hprob2.
+  apply Permutation_map with (f:=(fun '(r, d) => (r * d.(prob) a)%R)) in H.
+  apply Permutation_sum_eq; assumption.
+Qed.
+
+
 Theorem Permutation_imply_event_sum_distr_imply_event:
   forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
     (exists L1',
@@ -1540,21 +1652,8 @@ Proof.
 Admitted.
 
 
-Theorem Forall2_imply_event_sum_distr_imply_event:
-  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
-     Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1 L2
-  -> ProbDistr.sum_distr L1 ds1 
-  -> ProbDistr.sum_distr L2 ds2
-  -> ProbDistr.imply_event ds1 ds2.
-Admitted.
 
-Theorem Permutation_sum_distr_equiv:
-  forall (L1 L1' : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
-  Permutation L1 L1'
-  -> ProbDistr.sum_distr L1 ds1
-  -> ProbDistr.sum_distr L1' ds2
-  -> ProbDistr.equiv ds1 ds2.
-Admitted.
+
 
 
 (*
@@ -1693,7 +1792,7 @@ Proof.
 
 Admitted.
 
-(* TODO *)
+
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
           pointwise_relation _ ProbMonad.equiv_event ==>
@@ -1703,11 +1802,74 @@ Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.equiv_event in *.
-  unfold pointwise_relation in H_eq_g.
-  eexists.
-  eexists.
-  repeat split.
-Admitted.
+  assert (pointwise_relation A ProbMonad.imply_event gx gy) as H_le_g.
+  {
+    unfold pointwise_relation in *.
+    unfold ProbMonad.imply_event.
+    intros.
+    specialize (H_eq_g a).
+    destruct H_eq_g as [d1 [d2 [Hd1 [Hd2 H_eq_g]]]].
+    exists d1, d2.
+    repeat split; [tauto | tauto |].
+    specialize(ProbDistr_biliteral_imply_event_iif_equiv_event d1 d2) as H.
+    destruct H as [_ H].
+    apply H in H_eq_g.
+    tauto.
+  }
+  assert (pointwise_relation A ProbMonad.imply_event gy gx) as H_ge_g.
+  {
+    unfold pointwise_relation in *.
+    unfold ProbMonad.imply_event.
+    intros.
+    specialize (H_eq_g a).
+    destruct H_eq_g as [d1 [d2 [Hd1 [Hd2 H_eq_g]]]].
+    exists d2, d1.
+    repeat split; [tauto | tauto |].
+    specialize(ProbDistr_biliteral_imply_event_iif_equiv_event d1 d2) as H.
+    destruct H as [_ H].
+    apply H in H_eq_g.
+    tauto.
+  }
+
+  specialize (ProbMonad_bind_mono_event A fx fy H_eq_f gx gy H_le_g) as H_le.
+  symmetry in H_eq_f.
+  specialize (ProbMonad_bind_mono_event A fy fx H_eq_f gy gx H_ge_g) as H_ge.
+
+  clear H_le_g H_ge_g H_eq_g H_eq_f.
+
+  unfold ProbMonad.imply_event in *.
+
+  pose proof (x  <- fx;; gx x).(legal).(Legal_exists) as [d1 Hd1].
+  pose proof (y  <- fy;; gy y).(legal).(Legal_exists) as [d2 Hd2].
+  exists d1.
+  exists d2.
+  split; [exact Hd1 | split; [exact Hd2 |]].
+  apply ProbDistr_biliteral_imply_event_iif_equiv_event.
+
+  assert (ProbDistr.imply_event d1 d2) as H_imply_ge. {
+    destruct H_le as [d1' [d2' [Hd1' [Hd2' H_le']]]].
+    pose proof ((x  <- fx;; gx x).(legal).(Legal_unique) d1 d1' Hd1 Hd1') as Hx.
+    apply ProbDistr_equiv_equiv_event in Hx.
+    rewrite Hx.
+    pose proof ((y  <- fy;; gy y).(legal).(Legal_unique) d2 d2' Hd2 Hd2') as Hy.
+    apply ProbDistr_equiv_equiv_event in Hy.
+    rewrite Hy.
+    tauto.
+  }
+
+  assert (ProbDistr.imply_event d2 d1) as H_imply_le. {
+    destruct H_ge as [d2' [d1' [Hd2' [Hd1' H_le']]]].
+    pose proof ((x  <- fx;; gx x).(legal).(Legal_unique) d1 d1' Hd1 Hd1') as Hx.
+    apply ProbDistr_equiv_equiv_event in Hx.
+    rewrite Hx.
+    pose proof ((y  <- fy;; gy y).(legal).(Legal_unique) d2 d2' Hd2 Hd2') as Hy.
+    apply ProbDistr_equiv_equiv_event in Hy.
+    rewrite Hy.
+    tauto.
+  }
+
+  split; [exact H_imply_ge | exact H_imply_le].
+Qed.
 (* Admitted. * Level 2 *)
 
 (*
