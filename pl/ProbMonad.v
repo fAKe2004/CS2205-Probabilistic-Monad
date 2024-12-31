@@ -1,4 +1,4 @@
-Require Import Coq.Reals.Reals.
+Require Import Coq.Reals.Reals. 
 Require Import Coq.micromega.Psatz.
 Require Import Coq.Sorting.Permutation.
 Require Import SetsClass.SetsClass.
@@ -1651,9 +1651,134 @@ Proof.
   intros.
 Admitted.
 
+Lemma Permutation_in_remove:
+  forall (A : Type) (a : A) (l : list A),
+    In a l ->
+    Permutation l (a :: remove eq_dec a l).
+Proof.
+Admitted.
 
+Lemma construct_lists_forall2_imply_event:
+  forall (A : Type) (dx dy : Distr A) (gx gy : A -> ProbMonad.M Prop),
+    ProbDistr.equiv dx dy ->
+    (forall a, ProbMonad.imply_event (gx a) (gy a)) ->
+    exists lx ly,
+      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) lx ly /\
+      Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (gx a).(distr)) dx.(pset) lx /\
+      Forall2 (fun a '(r, d) => r = dy.(prob) a /\ d ∈ (gy a).(distr)) dy.(pset) ly.
+Proof.
+  intros A dx dy gx gy Heq_d H_eq_g.
+  induction dx.(pset) eqn:H_pset.
+  - (* Base case: empty list *)
+    exists [], [].
+    split; [|split].
+    + constructor. (* Empty lists are Forall2 related *)
+    + constructor. (* Empty lists are Forall2 related *)
+    + unfold ProbDistr.equiv in Heq_d.
+      destruct Heq_d as [_ Hperm].
+      rewrite H_pset in Hperm.
+      apply Permutation_nil in Hperm.
+      rewrite Hperm.
+      constructor. (* Empty lists are Forall2 related *)
+  -  (* Inductive case: a :: l *)
+    assert (exists lx_rest ly_rest,
+      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) lx_rest ly_rest /\
+      Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (gx a).(distr)) l lx_rest /\
+      Forall2 (fun a '(r, d) => r = dy.(prob) a /\ d ∈ (gy a).(distr)) (remove eq_dec a dy.(pset)) ly_rest)
+    as [lx_rest [ly_rest [H_impl_rest [Hx_rest Hy_rest]]]]. {
+      (* Apply IH on smaller lists *)
+      assert (ProbDistr.equiv {| ProbDistr.prob := dx.(prob); ProbDistr.pset := l |} 
+                             {| ProbDistr.prob := dy.(prob); ProbDistr.pset := remove eq_dec a dy.(pset) |}) as Heq_d_rest.
+      {
+        unfold ProbDistr.equiv in *.
+        destruct Heq_d as [Heq_prob Hperm].
+        split.
+        - (* Probabilities remain equal *)
+          exact Heq_prob.
+        - (* Permutation of remaining elements *)
+          rewrite H_pset in Hperm.
+          simpl.
+          assert (In a dy.(pset)) as Ha_in. {
+            apply Permutation_in with (l := a :: l).
+            - exact Hperm.
+            - simpl. left. reflexivity.
+          }
+          apply Permutation_in_remove in Ha_in.
+          assert (Permutation (a :: l) (a :: remove eq_dec a dy.(pset))) as H_trans.
+          {
+            apply Permutation_trans with (l' := dy.(pset)).
+            - exact Hperm.
+            - exact Ha_in.
+          }
 
+          (* Then use Permutation_cons_inv to remove 'a' from both sides *)
+          apply Permutation_cons_inv with (a := a) in H_trans.
+          exact H_trans.
+      }
+      (* Apply IH *)
+      eapply IHl; eauto.
+    }
 
+    (* Get distributions for element a *)
+    specialize (H_eq_g a) as [dxa [dya [Hxa [Hya Himpl_a]]]].
+    
+    (* Construct new lists by prepending pairs *)
+    exists ((dx.(prob) a, dxa) :: lx_rest), ((dy.(prob) a, dya) :: ly_rest).
+    
+    split; [|split].
+    
+    + (* Prove Forall2 implication relationship for new lists *)
+      constructor.
+      * (* Prove head elements maintain relationship *)
+        split.
+        -- (* Show probabilities are equal *)
+           unfold ProbDistr.equiv in Heq_d.
+           destruct Heq_d as [Heq_prob _].
+           apply Heq_prob.
+        -- (* Show implication holds *)
+           exact Himpl_a.
+      * (* Rest of lists maintain relationship by IH *)
+        exact H_impl_rest.
+        
+    + (* Prove Forall2 relationship with dx.(pset) *)
+      rewrite Hpset.
+      constructor.
+      * (* Prove for head element *)
+        split; [reflexivity | exact Hxa].
+      * (* Rest follows from IH *)
+        exact Hx_rest.
+        
+    + (* Prove Forall2 relationship with dy.(pset) *)
+      unfold ProbDistr.equiv in Heq_d.
+      destruct Heq_d as [_ Hperm].
+      rewrite Hpset in Hperm.
+      assert (In a dy.(pset)) as Ha_in. {
+        apply Permutation_in with (l := a :: l).
+        - exact Hperm.
+        - simpl. left. reflexivity.
+      }
+      assert (Permutation dy.(pset) (a :: remove eq_dec a dy.(pset))) as Hperm_remove. {
+        apply NoDup_Permutation.
+        - apply dy.(legal).(Legal_nodup).
+        - constructor.
+          + apply not_in_remove.
+          + apply nodup_remove.
+            apply dy.(legal).(Legal_nodup).
+        - intros x.
+          split; intros.
+          + destruct (eq_dec x a).
+            * subst. simpl. left. reflexivity.
+            * right. apply in_remove. exact n. exact H.
+          + simpl in H. destruct H.
+            * left. exact H.
+            * apply in_remove_was_in in H. exact H.
+      }
+      rewrite <- Hperm_remove.
+      constructor.
+      * split; [reflexivity | exact Hya].
+      * exact Hy_rest.
+Qed.
+Admitted.
 
 
 (*
@@ -1671,6 +1796,9 @@ Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.imply_event.
+  simpl.
+  unfold ProbMonad.__bind.
+  unfold pointwise_relation in H_eq_g.
   
   (* Get distributions from fx and fy using Legal_exists *)
   destruct (fx.(legal).(Legal_exists)) as [dx Hdx].
@@ -1683,7 +1811,7 @@ Proof.
     - apply H_eq_f.
       exact Hdy.
   }
-
+  
   (* For each a in dx.(pset), get distributions from gx a and gy a *)
   assert (forall a, exists dxa dya,
     dxa ∈ (gx a).(distr) /\ 
@@ -1695,103 +1823,61 @@ Proof.
     exact H_eq_g.
   }
 
-  (* Handle the case where dx.(pset) is empty *)
-  destruct dx.(pset) as [|first_a rest] eqn:Hpset.
-  { 
-    (* If the support is empty, define zero_distr with zero probabilities and empty pset *)
-    pose (zero_distr := 
-      {| ProbDistr.prob := (fun _ => 0%R);
-         ProbDistr.pset := (@nil Prop) |}).
+  specialize (construct_lists_forall2_imply_event _ dx dy gx gy Heq_d H_g_dist) as [lx [ly [H_impl [Hx Hy]]]].
 
-    (* Assert that the sum of an empty list is zero_distr *)
-    assert (ProbDistr.sum_distr nil zero_distr) as Hsum_zero.
-    {
+  (* Now we can construct d1 and d2 *)
+  assert (exists d1 d2,
+    ProbDistr.sum_distr lx d1 /\
+    ProbDistr.sum_distr ly d2) as [d1 [d2 [Hsum1 Hsum2]]]. {
+     (* First, construct d1 *)
+    exists {|
+      ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R lx);
+      ProbDistr.pset := concat (map (fun '(r, d) => d.(pset)) lx)
+    |}.
+    
+    (* Then, construct d2 *)
+    exists {|
+      ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R ly);
+      ProbDistr.pset := concat (map (fun '(r, d) => d.(pset)) ly)
+    |}.
+    
+    split.
+    - (* Prove ProbDistr.sum_distr lx d1 *)
       split.
-      - simpl. tauto.
-      - simpl. reflexivity.
-    }
-
-    (* Similarly, assert for by *)
-    assert (ProbDistr.sum_distr nil zero_distr) as Hsum_zero'.
-    {
-      split.
-      - simpl. tauto.  (* Handle pset_valid *)
-      - intros.        (* Handle prob_valid *)
-        simpl.
-        unfold zero_distr.
+      + (* Prove sum_pset_valid *)
+        intros a.
         reflexivity.
-    }
-
-    (* Provide bx and by as zero_distr *)
-    exists zero_distr, zero_distr.
-    split; [| split].
-    - (* Show zero_distr is in bind fx gx *)
-      unfold bind, ProbMonad.bind.
-      simpl.
-      unfold ProbMonad.__bind.
-      exists dx, nil.
-      split; [exact Hdx |].
+      + (* Prove sum_prob_valid *)
+        intros a.
+        reflexivity.
+        
+    - (* Prove ProbDistr.sum_distr ly d2 *)
       split.
-      + simpl.
-        rewrite Hpset.
-        constructor.
-      + exact Hsum_zero.
-    - (* Show zero_distr is in bind fy gy *)
-      unfold bind, ProbMonad.bind.
-      simpl.
-      unfold ProbMonad.__bind.
-      exists dy, nil.
-      split; [exact Hdy |].
-      split.
-      + unfold ProbDistr.equiv in Heq_d.
-        destruct Heq_d as [Hd1 Hd2].
-        rewrite Hpset in Hd2.
-        assert (dy.(pset) = nil).
-        { 
-          apply Permutation_nil.
-          (* apply Permutation_sym. *)
-          exact Hd2.
-        }
-        rewrite H. 
-        constructor.
-      + exact Hsum_zero'.
-    - (* Show ProbDistr.imply_event zero_distr zero_distr *)
-      apply ProbDistr_imply_event_refl.
+      + (* Prove sum_pset_valid *)
+        intros a.
+        reflexivity.
+      + (* Prove sum_prob_valid *)
+        intros a.
+        reflexivity.
   }
 
-  (* Case when dx.(pset) is non-empty *)
-  (* Obtain distributions for the first element *)
-  destruct (H_g_dist first_a) as [dummy_x [dummy_y [Hdx' [Hdy' Hd']]]].
-
-  
-  (* Construct lists lx and ly of distributions maintaining implication *)
-  assert (exists lx ly,
-    length lx = length (first_a :: rest) /\
-    length ly = length (first_a :: rest) /\
-    (forall i, i < length (first_a :: rest) -> 
-      let a := nth i (first_a :: rest) first_a in
-      nth i lx dummy_x ∈ (gx a).(distr) /\
-      nth i ly dummy_y ∈ (gy a).(distr) /\ 
-      ProbDistr.imply_event (nth i lx dummy_x) (nth i ly dummy_y))) 
-  as [lx [ly [Hlen_x [Hlen_y Hl]]]].
-  {
-    induction rest as [|a l' IHl'].
-    - (* Base case: singleton list *)
-      exists [dummy_x], [dummy_y].
-      split; [reflexivity | split; [reflexivity |]].
-      intros i Hi.
-      simpl in Hi.
-      destruct i.
-      + simpl.
-        split; [exact Hdx' | split; [exact Hdy' | exact Hd']].
-      + lia.
-    - (* Inductive case *)
-  
-  
-  }
-
-Admitted.
-
+  (* Finally, we can prove the goal *)
+  exists d1, d2.
+  split; [| split].
+  - (* Show d1 is in bind fx gx *)
+    exists dx, lx.
+    split; [exact Hdx |].
+    split; [exact Hx | exact Hsum1].
+  - (* Show d2 is in bind fy gy *)
+    exists dy, ly.
+    split; [exact Hdy |].
+    split; [exact Hy | exact Hsum2].
+  - (* Show ProbDistr.imply_event d1 d2 *)
+    eapply Forall2_imply_event_sum_distr_imply_event.
+    + exact H_impl.
+    + exact Hsum1.
+    + exact Hsum2.
+Qed.
 
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
