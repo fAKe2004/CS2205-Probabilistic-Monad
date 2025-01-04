@@ -215,6 +215,14 @@ Theorem Permutation_sum_distr_equiv:
   -> ProbDistr.equiv ds1 ds2.
 ```
 
+#### 11. Theorem ProbMonad_equiv_equiv_event:
+
+```coq
+  forall (f1 f2: ProbMonad.M Prop),
+    ProbMonad.equiv f1 f2 ->
+    ProbMonad.equiv_event f1 f2.
+```
+
 ---
 
 # Note:

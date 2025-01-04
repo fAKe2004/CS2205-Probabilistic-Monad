@@ -1030,7 +1030,9 @@ Fixpoint rem_dups {A: Type} (eq_dec: forall x y: A, {x = y} + {x <> y}) (l: list
                else x :: rem_dups eq_dec xs
   end.
 
-
+(*
+  Auxiliary Theorem
+*)
 Lemma get_distr_from_legal {A : Type} {g : A -> Distr A -> Prop} (a : A) (Hg : Legal (g a)) : exists d : Distr A, d ∈ g a.
 Proof.
   destruct Hg as [ex _ _].
@@ -1666,7 +1668,7 @@ Lemma construct_lists_forall2_imply_event:
       Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) lx ly /\
       Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (gx a).(distr)) dx.(pset) lx /\
       Forall2 (fun a '(r, d) => r = dy.(prob) a /\ d ∈ (gy a).(distr)) dy.(pset) ly.
-Proof.
+(* Proof.
   intros A dx dy gx gy Heq_d H_eq_g.
   induction dx.(pset) eqn:H_pset.
   - (* Base case: empty list *)
@@ -1716,7 +1718,7 @@ Proof.
           exact H_trans.
       }
       (* Apply IH *)
-      eapply IHl; eauto.
+      (* eapply IHl; eauto. *)
     }
 
     (* Get distributions for element a *)
@@ -1777,7 +1779,7 @@ Proof.
       constructor.
       * split; [reflexivity | exact Hya].
       * exact Hy_rest.
-Qed.
+Qed. *)
 Admitted.
 
 
@@ -2132,18 +2134,57 @@ Lemma bind_ret_l:
          (a: A)
          (f: A -> ProbMonad.M B),
   bind (ret a) f == f a.
-Admitted. (** Level 3 *)
+Proof.
+  intros.
+  unfold bind, ret; simpl.
+  remember (ProbMonad.bind (ProbMonad.ret a) f) as lhs.
+  unfold ProbMonad.bind in *.
+  unfold ProbMonad.equiv in *; sets_unfold.
+  intro distr.
+  split.
+Admitted.
+(* Admitted. * Level 3 *)
+
+(*
+  Property: Auxiliary Theorem
+*)
+Theorem ProbMonad_equiv_equiv_event:
+  forall (f1 f2: ProbMonad.M Prop),
+    ProbMonad.equiv f1 f2 ->
+    ProbMonad.equiv_event f1 f2.
+Proof.
+  intros.
+  unfold ProbMonad.equiv_event.
+  unfold ProbMonad.equiv in H. sets_unfold in H.
+  pose proof (f1.(legal).(Legal_exists)) as [d1 Hd1].
+  apply H in Hd1 as Hd2.
+  exists d1, d1.
+  split; [exact Hd1 | split; [exact Hd2 | reflexivity]].
+Qed.
+
 
 Lemma bind_ret_l_event:
   forall (A: Type)
          (a: A)
          (f: A -> ProbMonad.M Prop),
   ProbMonad.equiv_event (bind (ret a) f) (f a).
-Admitted. (** Level 3 *)
+Proof.
+  intros.
+  specialize (bind_ret_l A Prop a f) as H.
+  apply ProbMonad_equiv_equiv_event in H.
+  tauto.
+Qed.
+(* Admitted. * Level 3 *)
 
 Lemma bind_ret_r:
   forall (A: Type)
          (f: ProbMonad.M A),
   bind f ret == f.
-Admitted. (** Level 3 *)
+Proof.
+  intros.
+  unfold bind, ret; simpl.
+  unfold ProbMonad.bind, ProbMonad.ret.
+  unfold ProbMonad.__bind, ProbMonad.__ret; simpl.
+Admitted.
+(* Admitted. * Level 3 *)
 
