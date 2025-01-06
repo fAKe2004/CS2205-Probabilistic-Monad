@@ -224,8 +224,8 @@ Definition compute_pr (d: Distr Prop) (r: R): Prop :=
     (forall P, In P l <-> In P d.(pset) /\ P) /\
     sum_prob l d.(prob) = r.
 
-Definition compute_pr_eval(d: Distr Prop): R :=
-  sum_prob (filter (fun P: Prop =>  if eq_dec P True then true else false) d.(pset)) d.(prob).
+(* Definition compute_pr_eval(d: Distr Prop): R :=
+  sum_prob (filter (fun P: Prop =>  if eq_dec P True then true else false) d.(pset)) d.(prob). *)
 
 (*
   r = compute_pr_eval d
@@ -281,6 +281,8 @@ Record sum_distr {A: Type}
                  (ds: list (R * Distr A))
                  (d0: Distr A): Prop :=
 {
+  sum_legal:
+    legal d0;
   sum_pset_valid:
     forall a, In a d0.(pset) <->
               In a (concat (map (fun '(r, d) => d.(pset)) ds));
@@ -910,6 +912,8 @@ Record Legal {A: Type} (f: Distr A -> Prop): Prop := {
   Legal_exists: exists d, d ∈ f;
   Legal_legal: forall d, d ∈ f -> ProbDistr.legal d;
   Legal_unique: forall d1 d2, d1 ∈ f -> d2 ∈ f -> ProbDistr.equiv d1 d2;
+  (* congruence under ProbDistr.equiv*)
+  Legal_congr: forall d1 d2, ProbDistr.equiv d1 d2 -> d1 ∈ f -> d2 ∈ f;
 }.
 
 Record M (A: Type): Type :=
@@ -926,6 +930,9 @@ Definition __ret {A: Type} (a: A) : Distr A -> Prop :=
 
 
 (**
+  NEED FIX
+  for Legal_congr
+
   Description:
     Legal of __ret a.
 *)
@@ -998,7 +1005,8 @@ Proof.
         reflexivity.
     + rewrite H_d1_pset, H_d2_pset.
       apply Permutation_refl.
-Qed.
+Admitted.
+(* Qed. *)
          
       
 
@@ -1069,13 +1077,13 @@ Proof.
       * rewrite <- Heqelements.
         constructor.
       * split.
-        -- reflexivity.
+      (* -- reflexivity.
         -- reflexivity.   
-    + (* If d_f.(pset) is a :: rest *)
+      + (* If d_f.(pset) is a :: rest *)
       (* From g a, obtain d_g(a) ∈ g a *)
       specialize (Hg a) as [d_g H_d_g].
-      
-Admitted.
+       *)
+       Admitted.
 
     
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
@@ -1112,6 +1120,7 @@ Notation "x '.(legal)'" := (ProbMonad.legal x) (at level 1).
 Notation "x '.(Legal_exists)'" := (ProbMonad.Legal_exists _ x) (at level 1).
 Notation "x '.(Legal_legal)'" := (ProbMonad.Legal_legal _ x) (at level 1).
 Notation "x '.(Legal_unique)'" := (ProbMonad.Legal_unique _ x) (at level 1).
+Notation "x '.(Legal_congr)'" := (ProbMonad.Legal_congr _ x) (at level 1).
 
 Definition Always {A: Type} (c: ProbMonad.M A) (P: A -> Prop): Prop :=
   Hoare (ProbMonad.compute_pr (res <- c;; ret (P res))) (fun pr => pr = 1%R).
@@ -1607,16 +1616,14 @@ Theorem Permutation_sum_distr_equiv:
   Permutation L1 L1'
   -> ProbDistr.sum_distr L1 ds1
   -> ProbDistr.sum_distr L1' ds2
-  -> ProbDistr.legal ds1
-  -> ProbDistr.legal ds2
   -> ProbDistr.equiv ds1 ds2.
 Proof.
   intros.
-  destruct H0 as [Hpset1 Hprob1].
-  destruct H1 as [Hpset2 Hprob2].
+  destruct H0 as [Hlegal1 Hpset1 Hprob1].
+  destruct H1 as [Hlegal2 Hpset2 Hprob2].
   unfold ProbDistr.equiv.
-  destruct H2 as [H_no_dup1 _ H_pset_valid1 _].
-  destruct H3 as [H_no_dup2 _ H_pset_valid2 _].
+  destruct Hlegal1 as [H_no_dup1 _ H_pset_valid1 _].
+  destruct Hlegal2 as [H_no_dup2 _ H_pset_valid2 _].
   assert (Permutation ds1.(pset) ds2.(pset)) as H_perm_ds1_ds2. {
     apply NoDup_Permutation; [tauto | tauto |].
     intro a.
@@ -1794,7 +1801,13 @@ Admitted.
           pointwise_relation _ ProbMonad.imply_event ==>
           ProbMonad.imply_event)
     (@bind _ ProbMonad A Prop).
-Proof.
+Admitted.
+(*
+  NEED FIX:
+  sum_distr require final distribution to be legal.
+*)
+
+(* Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.imply_event.
@@ -1879,7 +1892,7 @@ Proof.
     + exact H_impl.
     + exact Hsum1.
     + exact Hsum2.
-Qed.
+Qed. *)
 
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
@@ -2129,6 +2142,61 @@ Lemma bind_assoc_event:
     (bind f (fun a => bind (g a) h)).
 Admitted. (** Level 3 *)
 
+
+(*
+  Name: Forall2_singleton_inv
+  Property: Auxiliary Theorem
+  
+  Forall2 rel [a] l -> exists b, l = [b] /\ rel a b
+
+  used to extract the only element in a list under singleton mapping.
+*)
+Lemma Forall2_singleton_inv : forall A B (rel : A -> B -> Prop) (a : A) (l : list B),
+  Forall2 rel [a] l -> exists b, l = [b] /\ rel a b.
+Proof.
+  intros A B rel a l H.
+  inversion H; subst; simpl.
+  exists y.
+  assert (l' = []). {
+    inversion H4.
+    reflexivity.
+  }
+  subst.
+  split.
+  - reflexivity.
+  - tauto.
+Qed.
+
+(*
+  Name: sum_distr_singleton_preserve:
+  Property: Auxiliary Theorem
+  Description:
+    ProbDistr.sum_distr [(1, d)] ds -> d == ds as long as d is legal
+*)
+Lemma sum_distr_singleton_preserve:
+  forall {A: Type} (r : R) (d: Distr A) (ds : Distr A),
+    r = 1%R ->
+    ProbDistr.legal d ->
+    ProbDistr.sum_distr [(r, d)] ds 
+    -> ProbDistr.equiv d ds.
+Proof.
+  intros.
+  destruct H1 as [H1 ? ? ].
+  simpl in *.
+  rewrite app_nil_r in sum_pset_valid.
+  unfold ProbDistr.equiv.
+  split.
+  + intros.
+    specialize (sum_prob_valid a) as H_prob.
+    rewrite H_prob.
+    nra.
+  + destruct H0 as [H0 _ _ _].
+    destruct H1 as [H1 _ _ _].
+    symmetry in sum_pset_valid.
+    apply NoDup_Permutation; [exact H0 | exact H1 | exact sum_pset_valid].
+Qed.
+    
+
 Lemma bind_ret_l:
   forall (A B: Type)
          (a: A)
@@ -2140,13 +2208,52 @@ Proof.
   remember (ProbMonad.bind (ProbMonad.ret a) f) as lhs.
   unfold ProbMonad.bind in *.
   unfold ProbMonad.equiv in *; sets_unfold.
-  intro distr.
+  intro ds.
   split.
-Admitted.
+  + intro; unfold ProbMonad.__bind in *; subst.
+    destruct H.
+    destruct H as [l [Hret [Hl Hsum_distr]]].
+    destruct Hret as [Hret1 [Hret2 Hret3]].
+    rewrite Hret1 in Hl.
+    apply Forall2_singleton_inv in Hl as [[r ds'] [Hrds' [Hr Hds']]]. (* extract distr intermediate *)
+    rewrite Hret2 in Hr; subst r.
+    subst l.
+    pose proof ((f a).(legal).(Legal_legal) ds' Hds') as Hds'_legal.
+    pose proof (sum_distr_singleton_preserve 1%R ds' ds eq_refl Hds'_legal Hsum_distr) as H_equiv.
+    pose proof ((f a).(legal).(Legal_congr) ds' ds H_equiv Hds') as H_congr.
+    exact H_congr.
+  + intro. (* 
+  idea: 
+  先用 exists 搞一个 lhs.(distr) 的 ds' 出来，证明 ds' ∈ (f a).(distr) 
+  [通过 sum_distr_singleton_preserve 证明, 中间变量是 ds'' ∈ (f a).(distr) => ds'' == ds' => ds' ∈ (f a).(distr) by Legal_congr].
+
+  然后 (f a) Legal_unique 得到 ds'==ds, 再 lhs Legal_congr, 得到 ds ∈ lhs.(distr)
+  *)
+    pose proof (lhs.(legal).(Legal_exists)) as [ds' Hds'].
+    assert (ds' ∈ lhs.(distr)) as Hds'_copy. {
+      exact Hds'.
+    }
+    rewrite Heqlhs in Hds'.
+    destruct Hds' as [x [l [Hret [Hl Hsum_distr]]]].
+    destruct Hret as [Hret1 [Hret2 Hret3]].
+    rewrite Hret1 in Hl.
+    apply Forall2_singleton_inv in Hl as [[r ds''] [Hrds'' [Hr Hds'']]]. (* extract distr intermediate *)
+    subst l.
+    rewrite Hret2 in Hr; subst r.
+    pose proof ((f a).(legal).(Legal_legal) ds'' Hds'') as Hds''_legal.
+    pose proof (sum_distr_singleton_preserve 1%R ds'' ds' eq_refl Hds''_legal Hsum_distr) as H_equiv.
+    pose proof ((f a).(legal).(Legal_congr) ds'' ds' H_equiv Hds'') as H_congr.
+    pose proof ((f a).(legal).(Legal_unique) ds' ds H_congr H)as H_equiv2.
+    pose proof(lhs.(legal).(Legal_congr) ds' ds H_equiv2 Hds'_copy) as H_congr2.
+    exact H_congr2.
+Qed.
 (* Admitted. * Level 3 *)
 
 (*
+  Name: ProbMonad_equiv_equiv_event
   Property: Auxiliary Theorem
+  Description:
+    ProbMonad.equiv f1 f2 -> ProbMonad.equiv_event f1 f2
 *)
 Theorem ProbMonad_equiv_equiv_event:
   forall (f1 f2: ProbMonad.M Prop),
@@ -2185,6 +2292,9 @@ Proof.
   unfold bind, ret; simpl.
   unfold ProbMonad.bind, ProbMonad.ret.
   unfold ProbMonad.__bind, ProbMonad.__ret; simpl.
+  unfold ProbMonad.equiv; sets_unfold.
+  intro distr.
+  split.
 Admitted.
 (* Admitted. * Level 3 *)
 

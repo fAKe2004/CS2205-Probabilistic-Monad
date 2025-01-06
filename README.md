@@ -215,12 +215,40 @@ Theorem Permutation_sum_distr_equiv:
   -> ProbDistr.equiv ds1 ds2.
 ```
 
-#### 11. Theorem ProbMonad_equiv_equiv_event:
+#### 11. ProbMonad_equiv_equiv_event:
+
+  ProbMonad.equiv f1 f2 -> ProbMonad.equiv_event f1 f2
 
 ```coq
   forall (f1 f2: ProbMonad.M Prop),
     ProbMonad.equiv f1 f2 ->
     ProbMonad.equiv_event f1 f2.
+```
+
+#### 12. Forall2_singleton_inv
+  
+  Extract the element in the resulting list under singleton Forall2 relation.
+
+  `Forall2 rel [a] l -> exists b, l = [b] /\ rel a b.`
+
+```coq
+  Lemma Forall2_singleton_inv : forall A B (rel : A -> B -> Prop) (a : A) (l : list B),
+  Forall2 rel [a] l -> exists b, l = [b] /\ rel a b.
+```
+
+#### 13. sum_distr_singleton_preserve:
+
+  sum_distr over singelton with weight 1%R implies equivalence relation between input and output distribution.
+
+  `ProbDistr.sum_distr [(1, d)] ds -> d == ds.`
+
+```coq
+Lemma sum_distr_singleton_preserve:
+  forall {A: Type} (r : R) (d: Distr A) (ds : Distr A),
+    r = 1%R ->
+    ProbDistr.legal d ->
+    ProbDistr.sum_distr [(r, d)] ds 
+    -> ProbDistr.equiv d ds.
 ```
 
 ---
@@ -230,3 +258,18 @@ Theorem Permutation_sum_distr_equiv:
 - fAKe: 要求：对每个 Theorem/核心 Definition 写 description 记录其直观含义。对辅助引理，注意命名规范，并且标注 "Auxiliary Theorem".
 
 - fAKe: 开始写之前建议读一下我写的注释先，可能就不开分支了，push 的时候手动 merge 一下就好。
+
+- <font color = "crimson"> January 6th: IMPORTANT UPDATE </font> 
+1. 对 sum_distr 做了 legal 要求的修改。
+```coq
+  sum_legal:
+    legal d0;
+```
+2. 对 ProbMonad 做了 legal_congr 的修改。
+```coq
+  Legal_congr: forall d1 d2, ProbDistr.equiv d1 d2 -> d1 ∈ f -> d2 ∈ f;
+```
+
+也就是说 ProbMonad.(distr) 对于 ProbDistr.equiv 是封闭的，这是一个合理的要求，不然后面命题证明不了。
+
+以上两个修改造成前面少数命题证明挂了，已经用 NEED FIX 标出，相应的同学稍微修一下，应该不是大问题。
