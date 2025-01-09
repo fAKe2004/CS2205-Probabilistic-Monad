@@ -303,3 +303,5 @@ Theorem is_det_prob_01:
   - __ret_legal 已经 fix 了。
 
   - 听说 Always_consq 有点问题，暂停。
+
+  - 把 sum_distr_legal 的要求暂时弱化成了 sum_pset_no_dup.

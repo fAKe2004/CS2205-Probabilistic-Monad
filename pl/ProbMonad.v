@@ -281,8 +281,8 @@ Record sum_distr {A: Type}
                  (ds: list (R * Distr A))
                  (d0: Distr A): Prop :=
 {
-  sum_legal:
-    legal d0;
+  sum_pset_no_dup: (* adds on to enforce d0.(pset)'s validity*)
+    NoDup d0.(pset);
   sum_pset_valid:
     forall a, In a d0.(pset) <->
               In a (concat (map (fun '(r, d) => d.(pset)) ds));
@@ -1637,7 +1637,7 @@ Proof.
 Qed.
 
 
-(*
+(* (*
   Name: Permutation_sum_distr_equiv
   Property: Auxiliary Theorem
   Description:
@@ -1677,10 +1677,10 @@ Proof.
   rewrite Hprob2.
   apply Permutation_map with (f:=(fun '(r, d) => (r * d.(prob) a)%R)) in H.
   apply Permutation_sum_eq; assumption.
-Qed.
+Qed. *)
 
 
-Theorem Permutation_imply_event_sum_distr_imply_event:
+(* Theorem Permutation_imply_event_sum_distr_imply_event:
   forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
     (exists L1',
       Permutation L1 L1' /\
@@ -1688,9 +1688,7 @@ Theorem Permutation_imply_event_sum_distr_imply_event:
     ProbDistr.sum_distr L1 ds1 ->
     ProbDistr.sum_distr L2 ds2 ->
     ProbDistr.imply_event ds1 ds2.
-Proof.
-  intros.
-Admitted.
+Admitted. *)
 
 Lemma Permutation_in_remove:
   forall (A : Type) (a : A) (l : list A),
@@ -1821,6 +1819,36 @@ Lemma construct_lists_forall2_imply_event:
 Qed. *)
 Admitted.
 
+(*
+  Name: no_dup_in_equiv
+  Property: Auxiliary Theorem
+   (forall a, In a (nodup eq_dec l) <-> In a l).
+*)
+Theorem no_dup_in_equiv:
+  forall {A: Type} (l : list A),
+    (forall a, In a (nodup eq_dec l) <-> In a l).
+Proof.
+  intros.
+  split.
+  - intros H.
+    induction l as [| x xs IH].
+    + simpl in H. contradiction.
+    + simpl in H. destruct (in_dec eq_dec x xs).
+      * right. apply IH. exact H.
+      * simpl. destruct H as [H | H].
+        { left. exact H. }
+        { right. apply IH. exact H. }
+  - intros H.
+    induction l as [| x xs IH].
+    + simpl in H. contradiction.
+    + simpl. simpl in H. destruct (in_dec eq_dec x xs).
+      * destruct H as [H | H].
+        { subst. apply IH. exact i. }
+        { apply IH. exact H. }
+      * simpl. destruct H as [H | H].
+        { left. exact H. }
+        { right. apply IH. exact H. }
+Qed.
 
 (*
   Description:
@@ -1833,13 +1861,8 @@ Admitted.
           pointwise_relation _ ProbMonad.imply_event ==>
           ProbMonad.imply_event)
     (@bind _ ProbMonad A Prop).
-Admitted.
-(*
-  NEED FIX:
-  sum_distr require final distribution to be legal.
-*)
-
-(* Proof.
+(* Admitted. *)
+Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.imply_event.
@@ -1879,32 +1902,32 @@ Admitted.
      (* First, construct d1 *)
     exists {|
       ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R lx);
-      ProbDistr.pset := concat (map (fun '(r, d) => d.(pset)) lx)
+      ProbDistr.pset := nodup eq_dec (concat (map (fun '(r, d) => d.(pset)) lx))
     |}.
     
     (* Then, construct d2 *)
     exists {|
       ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R ly);
-      ProbDistr.pset := concat (map (fun '(r, d) => d.(pset)) ly)
+      ProbDistr.pset := nodup eq_dec (concat (map (fun '(r, d) => d.(pset)) ly))
     |}.
     
     split.
     - (* Prove ProbDistr.sum_distr lx d1 *)
       split.
+      + (* Prove sum_pset_no_dup *)
+        apply NoDup_nodup.
       + (* Prove sum_pset_valid *)
-        intros a.
-        reflexivity.
+        apply no_dup_in_equiv.
       + (* Prove sum_prob_valid *)
-        intros a.
         reflexivity.
         
     - (* Prove ProbDistr.sum_distr ly d2 *)
       split.
+      + (* Prove sum_pset_no_dup *)
+        apply NoDup_nodup.
       + (* Prove sum_pset_valid *)
-        intros a.
-        reflexivity.
+        apply no_dup_in_equiv.
       + (* Prove sum_prob_valid *)
-        intros a.
         reflexivity.
   }
 
@@ -1924,7 +1947,7 @@ Admitted.
     + exact H_impl.
     + exact Hsum1.
     + exact Hsum2.
-Qed. *)
+Qed.
 
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
   Proper (ProbMonad.equiv ==>
@@ -2627,13 +2650,12 @@ Proof.
   + destruct H_sum_distr.
     specialize (sum_pset_valid) as H_pset.
     destruct H_legal.
-    destruct sum_legal.
-    apply NoDup_Permutation; [exact legal_no_dup | exact legal_no_dup0 |].
+    apply NoDup_Permutation; [exact legal_no_dup | exact sum_pset_no_dup |].
     intro a0.
     specialize (H_pset a0).
     rewrite H_pset.
     clear legal_no_dup legal_nonneg legal_pset_valid legal_prob_1.
-    clear legal_no_dup0 legal_nonneg0 legal_pset_valid0 legal_prob_0.
+    clear sum_pset_no_dup sum_pset_valid sum_prob_valid.
     specialize (sum_distr_is_det_list_exists_aux0 d0 ds_list Hds_list) as H_pset_eq.
     rewrite H_pset_eq.
     reflexivity.
