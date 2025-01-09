@@ -961,9 +961,6 @@ Definition __ret {A: Type} (a: A) : Distr A -> Prop :=
 
 
 (**
-  NEED FIX
-  for Legal_congr
-
   Description:
     Legal of __ret a.
 *)
@@ -1023,9 +1020,26 @@ Proof.
         reflexivity.
     + rewrite H_d1_pset, H_d2_pset.
       apply Permutation_refl.
-Admitted.
-(* Qed. *)
-         
+  - intros d1 d2 H_equiv.
+    intro Hd1.
+    destruct Hd1 as [Hpset [Hprob1 Hprob0]].
+    unfold ProbDistr.equiv in H_equiv.
+    destruct H_equiv as [Hprob_equiv Hpset_equiv].
+    repeat split.
+    + rewrite Hpset in Hpset_equiv.
+      apply Permutation_length_1_inv in Hpset_equiv.
+      exact Hpset_equiv.
+    + specialize (Hprob_equiv a).
+      rewrite Hprob1 in Hprob_equiv.
+      symmetry in Hprob_equiv.
+      exact Hprob_equiv.
+    + intros b Hb.
+      specialize (Hprob0 b Hb).
+      specialize (Hprob_equiv b).
+      rewrite Hprob0 in Hprob_equiv.
+      symmetry in Hprob_equiv.
+      exact Hprob_equiv.
+Qed.         
       
 
 Definition ret {A: Type} (a: A) : M A :=
@@ -2670,5 +2684,3 @@ Proof.
     tauto.
 Qed.
 (* Admitted. * Level 3 *)
-
-

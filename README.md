@@ -299,3 +299,7 @@ Theorem is_det_prob_01:
 
 - January 9th fAKe,
   写好了 bind_ret_r 的证明，也算是稍微搞懂了点怎么证明 sum_distr 相关的性质了。建议各位先读一下 bint_ret_l 之后的关于 bind_ret_r 的证明，理解一下怎么处理 Forall2.
+
+  - __ret_legal 已经 fix 了。
+
+  - 听说 Always_consq 有点问题，暂停。
