@@ -2482,7 +2482,7 @@ Qed.
 
 (* 
   direct auxiliary theorem for sum_distr_is_det_list_exists 
-  if in lpset and lpset nodup, sum prob a = d0.prob aa
+  if in lpset and lpset nodup, sum prob a = d0.prob a
 *)
 Theorem sum_distr_is_det_list_exists_aux3:
   forall {A: Type} (d0 : Distr A) (lpset: list A) (ldistr: list (R * Distr A)) (a0: A),
@@ -2594,32 +2594,9 @@ Proof.
   split; [tauto | |].
   (* pset equal *)
   + intro a.
-    assert (concat (map (fun '(_, d) => d.(pset)) ds_list) = d0.(pset)) as Hpset_eq.
-    {
-      revert Hds_list.
-      revert ds_list.
-      induction d0.(pset).
-      + intros ds_list Hds_list.
-        inversion Hds_list.
-        simpl.
-        reflexivity.
-      + intros ds_list Hds_list_app.
-        inversion Hds_list_app.
-        subst l0 a0.
-        subst ds_list.
-        specialize (IHl l' H3).
-        clear Hds_list_app H3.
-        simpl.
-        rewrite IHl.
-        subst rel.
-        unfold ProbDistr.is_det in H1.
-        destruct y.
-        destruct H1 as [_ [Hpset_eq_x _]].
-        rewrite Hpset_eq_x.
-        simpl.
-        reflexivity.
-    }
-    rewrite Hpset_eq.
+    subst rel.
+    specialize (sum_distr_is_det_list_exists_aux0 d0 ds_list Hds_list) as H_pset_eq.
+    rewrite H_pset_eq.
     reflexivity.
   (* prob equal *)
   + subst rel.
