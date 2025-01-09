@@ -251,6 +251,29 @@ Lemma sum_distr_singleton_preserve:
     -> ProbDistr.equiv d ds.
 ```
 
+### 14. forall_exists_Forall2_exists:
+  construct a Forall2 list from "forall a, exists b, rel a b"
+
+  To reuse this, you might need to move this lemma to front part of the code as its defined at tail for bind_ret_r.
+
+```coq
+Theorem forall_exists_Forall2_exists:
+  forall {A B: Type} (rel: A->B->Prop) (l1: list A),
+    (forall a : A, exists b : B, rel a b) -> exists l2, Forall2 rel l1 l2.
+```
+
+  Note: a similar but conditioned version may be helpful, but I don't need it, so not proven.
+
+### 15. is_det_prob_01
+
+if ProbDistr.is_det a d, then:
+    $d.(\text{prob})\ b = \begin{cases}1 & a=b \\ 0 & a \neq b \end{cases}$
+```coq
+Theorem is_det_prob_01:
+  forall {A : Type} (d : Distr A) (a: A) (b: A),
+    ProbDistr.is_det a d ->
+    ((a = b -> d.(prob) b = 1%R) /\ (a <> b -> d.(prob) b = 0%R)).
+```
 ---
 
 # Note:
@@ -259,7 +282,7 @@ Lemma sum_distr_singleton_preserve:
 
 - fAKe: 开始写之前建议读一下我写的注释先，可能就不开分支了，push 的时候手动 merge 一下就好。
 
-- <font color = "crimson"> January 6th: IMPORTANT UPDATE </font> 
+- <font color = "crimson"> January 6th: IMPORTANT UPDATE </font> fAKe
 1. 对 sum_distr 做了 legal 要求的修改。
 ```coq
   sum_legal:
@@ -273,3 +296,6 @@ Lemma sum_distr_singleton_preserve:
 也就是说 ProbMonad.(distr) 对于 ProbDistr.equiv 是封闭的，这是一个合理的要求，不然后面命题证明不了。
 
 以上两个修改造成前面少数命题证明挂了，已经用 NEED FIX 标出，相应的同学稍微修一下，应该不是大问题。
+
+- January 9th fAKe,
+  写好了 bind_ret_r 的证明，也算是稍微搞懂了点怎么证明 sum_distr 相关的性质了。建议各位先读一下 bint_ret_l 之后的关于 bind_ret_r 的证明，理解一下怎么处理 Forall2.

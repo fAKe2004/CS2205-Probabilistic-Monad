@@ -899,6 +899,37 @@ Proof.
 Qed.
 
 
+(*
+  unregistered
+
+  Name is_det_exists
+  Property: Auxiliary Theorem
+  Description:
+    for any element a: A, there exists a deterministic distribution d s.t. is_det a d.
+*)
+
+Theorem is_det_exists:
+  forall {A: Type} (a: A),
+    exists d: Distr A, ProbDistr.is_det a d.
+Proof.
+  intros A a.
+  exists {| 
+    ProbDistr.prob := fun x => if eq_dec x a then 1%R else 0%R;
+    ProbDistr.pset := [a]
+  |}.
+  split; simpl.
+  + reflexivity.
+  + split.
+    * rewrite eq_dec_refl.
+      lra.
+    * intros.
+      destruct (eq_dec b a).
+      -- exfalso. 
+        apply H.
+        rewrite e.
+        reflexivity.
+      -- tauto.
+Qed.
 (*********************************************************)
 (**                                                      *)
 (** Probability Monad                                    *)
@@ -941,22 +972,9 @@ Proof.
   intros.
   unfold __ret, ProbDistr.is_det.
   split.
-  - exists {| 
-      ProbDistr.prob := fun x => if eq_dec x a then 1%R else 0%R;
-      ProbDistr.pset := [a]
-    |}.
-    split; simpl.
-    + reflexivity.
-    + split.
-      * rewrite eq_dec_refl.
-        lra.
-      * intros.
-        destruct (eq_dec b a).
-        -- exfalso. 
-           apply H.
-           rewrite e.
-           reflexivity.
-        -- tauto.
+  - specialize (is_det_exists a) as [d Hd].
+    exists d.
+    exact Hd.
   - intros.
     destruct H as [Hpset [Hprob1 Hprob2]].
     split.
@@ -1128,7 +1146,7 @@ Definition Always {A: Type} (c: ProbMonad.M A) (P: A -> Prop): Prop :=
 Theorem Always_conseq: forall {A: Type} (P Q: A -> Prop),
   (forall a, P a -> Q a) ->
   (forall c, Always c P -> Always c Q).
-Admitted. (** Level 1 *)
+Admitted. (* Level 1 *)
 
 Theorem Always_bind_ret {A B: Type}:
   forall (c2: A -> ProbMonad.M B)
@@ -2283,18 +2301,374 @@ Proof.
 Qed.
 (* Admitted. * Level 3 *)
 
+    
+(*
+  Name forall_exists_Forall2_exists:
+  Property: Auxiliary Theorem
+  Description:
+    if forall a, exists b s.t. P a b is satisfied, then 
+    forall l1: list A, 
+      exists l2: list B s.t. Forall2 P l1 l2 is satisfied
+*)
+Theorem forall_exists_Forall2_exists:
+  forall {A B: Type} (rel: A->B->Prop) (l1: list A),
+    (forall a : A, exists b : B, rel a b) -> exists l2, Forall2 rel l1 l2.
+Proof.
+  intros.
+  induction l1 as [| head ltail].
+  - exists [].
+    constructor.
+  - destruct IHltail as [ltail' IH].
+    specialize (H head).
+    destruct H as [head' Hhead'].
+    exists (head' :: ltail').
+    constructor; [tauto | tauto].
+Qed.
+
+(* 
+  Property: Auxiliary Theorem
+  Description:
+    if ProbDistr.is_det a d, then:
+      d.(prob) b = {
+        1, if a = b
+        0, if a ≠ b
+      }
+*)
+Theorem is_det_prob_01:
+  forall {A : Type} (d : Distr A) (a: A) (b: A),
+    ProbDistr.is_det a d ->
+    ((a = b -> d.(prob) b = 1%R) /\ (a <> b -> d.(prob) b = 0%R)).
+Proof.
+  intros.
+  split; intro.
+  - subst.
+    unfold ProbDistr.is_det in H.
+    destruct H as [H1 [H2 H3]].
+    exact H2.
+  - unfold ProbDistr.is_det in H.
+    destruct H as [H1 [H2 H3]].
+    specialize (H3 b H0).
+    exact H3.
+Qed. 
+
+(* 
+  direct auxiliary theorem for sum_distr_is_det_list_exists 
+  // reused by sum_distr_is_det_preserve 
+
+  pset is preserved for sum_distr_is_det, or namely,
+   d0.(pset) = concat (map (fun '(_, d) => d.(pset)) ds_list)
+*)
+Theorem sum_distr_is_det_list_exists_aux0:
+  forall {A: Type} (d0 : Distr A) (ds_list : list(R * Distr A)),
+    Forall2 (fun a '(r, d) => r = d0.(prob) a /\ ProbDistr.is_det a d) d0.(pset) ds_list ->
+    concat (map (fun '(_, d) => d.(pset)) ds_list) = d0.(pset).
+Proof. 
+  intros ? ? ? Hds_list.
+  revert Hds_list.
+  revert ds_list.
+  induction d0.(pset).
+  + intros ds_list Hds_list.
+    inversion Hds_list.
+    simpl.
+    reflexivity.
+  + intros ds_list Hds_list_app.
+    inversion Hds_list_app.
+    subst l0 a.
+    subst ds_list.
+    specialize (IHl l' H3).
+    clear Hds_list_app H3.
+    simpl.
+    rewrite IHl.
+    unfold ProbDistr.is_det in H1.
+    destruct y.
+    destruct H1 as [_ [Hpset_eq_x _]].
+    rewrite Hpset_eq_x.
+    simpl.
+    reflexivity.
+Qed.
+
+
+(* 
+  direct auxiliary theorem for sum_distr_is_det_list_exists
+  convert original Forall2 to direct computable prob form 
+*)
+Theorem sum_distr_is_det_list_exists_aux1:
+  forall {A: Type} (d0 : Distr A) (lpset: list A) (ldistr: list (R * Distr A)),
+  Forall2 (fun a '(r, d) => r = d0.(prob) a /\ ProbDistr.is_det a d) lpset ldistr -> 
+  (forall (a0: A),
+    Forall2 
+      (fun a '(r, d) => 
+        (a = a0 ->  r * (d.(prob) a0) = d0.(prob) a0)%R /\ 
+        (a <> a0 -> r * (d.(prob) a0) = 0)%R
+      ) 
+      lpset ldistr).
+Proof.
+  intros ? ? ? ? H_Forall2 ?.
+  induction H_Forall2 as [| x y l1tail l2tail Hrel Htail].
+  + constructor.
+  (* l1 = x::l1tail, l2 = y::l2tail *)
+  + constructor; [|exact IHHtail].
+    destruct y. (* into (r, d) *)
+    destruct Hrel as [H_r H_d].
+    split; intro H.
+    (* x=a0 *)
+    - specialize(is_det_prob_01 d x a0 H_d) as [H_prob1 _].
+      specialize(H_prob1 H).
+      subst x.
+      rewrite H_prob1.
+      rewrite H_r.
+      nra.
+    (* x<>a0*)
+    - specialize(is_det_prob_01 d x a0 H_d) as [_ H_prob0].
+      specialize(H_prob0 H).
+      rewrite H_prob0.
+      rewrite H_r.
+      nra.
+Qed.
+
+
+(* 
+  direct auxiliary theorem for sum_distr_is_det_list_exists
+  if not in lpset, sum prob = 0 
+*)
+Theorem sum_distr_is_det_list_exists_aux2:
+  forall {A: Type} (d0 : Distr A) (lpset: list A) (ldistr: list (R * Distr A)) (a0: A),
+  (Forall2 
+      (fun a '(r, d) => 
+        (a = a0 ->  r * (d.(prob) a0) = d0.(prob) a0)%R /\ 
+        (a <> a0 -> r * (d.(prob) a0) = 0)%R
+      ) 
+      lpset ldistr)
+  -> ~In a0 lpset
+  -> sum (map (fun '(r, d) => (r * d.(prob) a0)%R) ldistr) = 0%R.
+Proof.
+  intros ? ? ? ? ? H H_not_in.
+  induction H as [|x y l1tail l2tail Hhead Htail].
+  - simpl; reflexivity.
+  - destruct y as [r d].
+    assert (~In a0 l1tail) as H_not_in_tail. {
+      intro H_in_tail.
+      apply H_not_in.
+      right.
+      exact H_in_tail.
+    }
+    specialize(IHHtail H_not_in_tail) as H_tail_sum.
+    simpl.
+    rewrite H_tail_sum.
+    assert (x <> a0) as H_neq. {
+      intro H_eq.
+      apply H_not_in.
+      left.
+      exact H_eq.
+    }
+    destruct Hhead as [_ Hhead].
+    specialize (Hhead H_neq).
+    nra.
+Qed.
+
+(* 
+  direct auxiliary theorem for sum_distr_is_det_list_exists 
+  if in lpset and lpset nodup, sum prob a = d0.prob aa
+*)
+Theorem sum_distr_is_det_list_exists_aux3:
+  forall {A: Type} (d0 : Distr A) (lpset: list A) (ldistr: list (R * Distr A)) (a0: A),
+  (Forall2 
+      (fun a '(r, d) => 
+        (a = a0 ->  r * (d.(prob) a0) = d0.(prob) a0)%R /\ 
+        (a <> a0 -> r * (d.(prob) a0) = 0)%R
+      ) 
+      lpset ldistr)
+  -> In a0 lpset
+  -> NoDup lpset
+  -> sum (map (fun '(r, d) => (r * d.(prob) a0)%R) ldistr) = d0.(prob) a0.
+Proof.
+  intros ? ? ? ? ? H_Forall2 H_in H_no_dup.
+  induction H_Forall2 as [| x y l1tail l2tail Hhead Htail].
+  - inversion H_in.
+  - destruct (classic (x = a0)) as [H_ishead| H_nhead]. (* whether a0 is the head *)
+    + subst a0.
+      destruct y as [r d].
+      destruct Hhead as [Hhead _].
+      specialize (Hhead eq_refl) as H_head_prob.
+      assert (~In x l1tail) as H_not_in_tail. {
+        apply NoDup_cons_iff in H_no_dup.
+        destruct H_no_dup as [H_no_dup _].
+        apply H_no_dup.
+      }
+      specialize (sum_distr_is_det_list_exists_aux2 d0 l1tail l2tail x Htail H_not_in_tail) as H_tail_prob.
+      simpl. (* split sum in objective *)
+      rewrite H_tail_prob.
+      rewrite H_head_prob.
+      nra.
+    + assert (In a0 l1tail) as H_in_tail.
+      {
+        destruct H_in as [H1 | H2].
+        - subst a0.
+          contradiction.
+        - exact H2.
+      }
+      assert (NoDup l1tail) as H_no_dup_tail. {
+        apply NoDup_cons_iff in H_no_dup.
+        destruct H_no_dup as [_ H_no_dup].
+        exact H_no_dup.
+      }
+      specialize (IHHtail H_in_tail H_no_dup_tail) as H_tail_prob.
+      simpl.
+      rewrite H_tail_prob.
+      destruct y as [r d].
+      destruct Hhead as [_ Hhead].
+      specialize (Hhead H_nhead) as H_head_prob.
+      nra.
+Qed.
+
+(*   
+  direct auxiliary theorem for sum_distr_is_det_list_exists 
+  // reused by sum_distr_is_det_preserve 
+  sum prob a = d0.prob a 
+*)
+Theorem sum_distr_is_det_list_exists_aux4:
+  forall {A: Type} (d0 : Distr A) (ds_list : list(R * Distr A)),
+  ProbDistr.legal d0 ->
+  Forall2 (fun a '(r, d) => r = d0.(prob) a /\ ProbDistr.is_det a d) d0.(pset) ds_list ->
+  forall a, d0.(prob) a = sum (map (fun '(r, d) => r * d.(prob) a)%R ds_list).
+Proof.
+  intros ? ? ? H_legal Hds_list a0.
+  specialize (sum_distr_is_det_list_exists_aux1 d0 d0.(pset) ds_list Hds_list a0) as H_ds_list_prob_a0.
+  destruct (classic (In a0 d0.(pset))) as [H_in | H_nin].
+  2 : { (* a0 not in pset*)
+    specialize (sum_distr_is_det_list_exists_aux2 d0 d0.(pset) ds_list a0 H_ds_list_prob_a0 H_nin) as H_sum0.
+    rewrite H_sum0.
+    destruct H_legal as [_ ? ? _].
+    specialize (legal_pset_valid a0).
+    destruct (classic ((d0.(prob) a0 > 0)%R)) as [H_pos | H_npos].
+    - specialize (legal_pset_valid H_pos).
+      tauto. (* contradiction *)
+    - specialize(legal_nonneg a0).
+      nra.
+  }
+  (* a0 in pset*)
+  destruct H_legal as [H_no_dup _ _ _].
+  specialize (sum_distr_is_det_list_exists_aux3 d0 d0.(pset) ds_list a0 H_ds_list_prob_a0 H_in H_no_dup) as H_sum_prob.
+  symmetry in H_sum_prob.
+  exact H_sum_prob.
+Qed.
+
+
+(* 
+  direct auxiliary theorem of **bind_ret_r**'s -> direction.
+*)
+Theorem sum_distr_is_det_list_exists:
+  forall {A: Type} (d0 : Distr A),
+      ProbDistr.legal d0 ->
+      exists ds_list,
+        Forall2 (fun a '(r, d) => r = d0.(prob) a /\ ProbDistr.is_det a d) d0.(pset) ds_list /\ ProbDistr.sum_distr ds_list d0.
+Proof.
+  intros A d0 H_legal.
+  remember ((fun (a : A) '(r, d) =>
+  r = d0.(prob) a /\ ProbDistr.is_det a d)) as rel.
+  assert (forall a : A, exists b : R * Distr A, rel a b) as H_is_det_ex. {
+    intros.
+    subst.
+    specialize (is_det_exists a) as [d Hd].
+    exists (d0.(prob) a, d).
+    split; [reflexivity | exact Hd]. 
+  }
+  specialize (forall_exists_Forall2_exists rel d0.(pset) H_is_det_ex) as H_ds_list_ex.
+  destruct H_ds_list_ex as [ds_list Hds_list].
+  exists ds_list.
+  split; [tauto |].
+  split; [tauto | |].
+  (* pset equal *)
+  + intro a.
+    assert (concat (map (fun '(_, d) => d.(pset)) ds_list) = d0.(pset)) as Hpset_eq.
+    {
+      revert Hds_list.
+      revert ds_list.
+      induction d0.(pset).
+      + intros ds_list Hds_list.
+        inversion Hds_list.
+        simpl.
+        reflexivity.
+      + intros ds_list Hds_list_app.
+        inversion Hds_list_app.
+        subst l0 a0.
+        subst ds_list.
+        specialize (IHl l' H3).
+        clear Hds_list_app H3.
+        simpl.
+        rewrite IHl.
+        subst rel.
+        unfold ProbDistr.is_det in H1.
+        destruct y.
+        destruct H1 as [_ [Hpset_eq_x _]].
+        rewrite Hpset_eq_x.
+        simpl.
+        reflexivity.
+    }
+    rewrite Hpset_eq.
+    reflexivity.
+  (* prob equal *)
+  + subst rel.
+    apply sum_distr_is_det_list_exists_aux4; assumption.
+Qed.
+
+
+(*
+  direct auxiliary theorem of **bind_ret_r**'s <- direction
+
+  most of the proof can be shared with sum_distr_is_det_list_exists.
+*)
+Theorem sum_distr_is_det_preserve:
+  forall {A: Type} (d0 : Distr A) (ds_list : list (R * Distr A)) (ds : Distr A),
+    ProbDistr.legal d0 ->
+    Forall2 (fun a '(r, d) => r = d0.(prob) a /\ ProbDistr.is_det a d) d0.(pset) ds_list ->
+    ProbDistr.sum_distr ds_list ds ->
+    ProbDistr.equiv d0 ds.
+Proof.
+  intros ? ? ? ? H_legal Hds_list H_sum_distr.
+  unfold ProbDistr.equiv.
+  split.
+  + intro a0.
+    destruct H_sum_distr.
+    specialize (sum_prob_valid a0) as H_prob_a0.
+    rewrite H_prob_a0.
+    apply sum_distr_is_det_list_exists_aux4; assumption.
+  + destruct H_sum_distr.
+    specialize (sum_pset_valid) as H_pset.
+    destruct H_legal.
+    destruct sum_legal.
+    apply NoDup_Permutation; [exact legal_no_dup | exact legal_no_dup0 |].
+    intro a0.
+    specialize (H_pset a0).
+    rewrite H_pset.
+    clear legal_no_dup legal_nonneg legal_pset_valid legal_prob_1.
+    clear legal_no_dup0 legal_nonneg0 legal_pset_valid0 legal_prob_0.
+    specialize (sum_distr_is_det_list_exists_aux0 d0 ds_list Hds_list) as H_pset_eq.
+    rewrite H_pset_eq.
+    reflexivity.
+Qed.
+
 Lemma bind_ret_r:
   forall (A: Type)
          (f: ProbMonad.M A),
   bind f ret == f.
 Proof.
   intros.
-  unfold bind, ret; simpl.
-  unfold ProbMonad.bind, ProbMonad.ret.
-  unfold ProbMonad.__bind, ProbMonad.__ret; simpl.
   unfold ProbMonad.equiv; sets_unfold.
-  intro distr.
-  split.
-Admitted.
+  intro ds.
+  remember (x <- f;; ret x) as lhs.
+  split; intro H; simpl in *; unfold ProbMonad.__bind, ProbMonad.__ret in *.
+  + destruct H as [ds' [l [Hds' [Hl Hsum_distr]]]].
+    pose proof (f.(legal).(Legal_legal) ds' Hds') as Hds'_legal.
+    specialize (sum_distr_is_det_preserve ds' l ds Hds'_legal Hl Hsum_distr) as H_equiv.
+    pose proof (f.(legal).(Legal_congr) ds' ds H_equiv Hds') as H_congr.
+    exact H_congr.
+  + exists ds.
+    specialize (f.(legal).(Legal_legal) ds H) as Hds_legal.
+    specialize (sum_distr_is_det_list_exists ds Hds_legal) as [ds_list [H_Forall2 H_sum_distr]].
+    exists ds_list.
+    tauto.
+Qed.
 (* Admitted. * Level 3 *)
+
 
