@@ -1359,10 +1359,82 @@ Notation "x '.(Legal_congr)'" := (ProbMonad.Legal_congr _ x) (at level 1).
 Definition Always {A: Type} (c: ProbMonad.M A) (P: A -> Prop): Prop :=
   Hoare (ProbMonad.compute_pr (res <- c;; ret (P res))) (fun pr => pr = 1%R).
 
+  Lemma ProbMonad_compute_pr_unique:
+  forall f r1 r2,
+  ProbMonad.compute_pr f r1 -> 
+  ProbMonad.compute_pr f r2 -> 
+  r1 = r2.
+Proof.
+  intros.
+  unfold ProbMonad.compute_pr in *.
+  destruct H as [d1 [H1 H2]].
+  destruct H0 as [d2 [H3 H4]].
+  pose proof (f.(legal).(Legal_unique) d1 d2 H1 H3) as H_unique.
+  apply ProbDistr_equiv_equiv_event in H_unique.
+  unfold ProbDistr.equiv_event in H_unique.
+  destruct H_unique as [r1' [r2' [H1' [H2' H_eq]]]].
+  specialize (ProbDistr_compute_pr_unique d1 r1 r1' H2 H1') as H_unique1.
+  specialize (ProbDistr_compute_pr_unique d2 r2 r2' H4 H2') as H_unique2.
+  subst r1.
+  subst r2.
+  tauto.
+Qed.
+
+Lemma ProbMonad_compute_pr_exists:
+  forall f, exists r, ProbMonad.compute_pr f r.
+Proof.
+  intros.
+  unfold ProbMonad.compute_pr.
+  pose proof f.(legal).(Legal_exists) as [d ?].
+  pose proof ProbDistr_compute_pr_exists d as [r ?].
+  exists r, d.
+  tauto.
+Qed.
+
+
+
+Lemma ProbMonad_compute_pr_imply: forall {A: Type} (P Q: A -> Prop) (c: ProbMonad.M A) (e d: R),
+  (forall a, P a -> Q a) ->
+  (d ∈ ProbMonad.compute_pr(res <- c;; ret (P res))) ->
+  (e ∈ ProbMonad.compute_pr(res <- c;; ret (Q res))) -> ((e >= d)%R).
+Proof.
+Admitted. 
+
+Lemma eq_to_ineq :
+  forall a : R,
+   (a >= 1)%R -> (a <= 1)%R -> a = 1%R.
+Proof.
+  intros.
+  lra.
+Qed.
+
+Lemma ProbMonad_compute_pr_less_than_one: forall (f : ProbMonad.M Prop) (r: R),
+  ProbMonad.compute_pr f r -> (r <= 1)%R.
+Admitted.
+
 Theorem Always_conseq: forall {A: Type} (P Q: A -> Prop),
   (forall a, P a -> Q a) ->
   (forall c, Always c P -> Always c Q).
-Admitted. (* Level 1 *)
+Proof.
+  intros.
+  unfold Always in *.
+  unfold Hoare in *.
+  intros.
+  apply eq_to_ineq.
+  2:{
+    apply ProbMonad_compute_pr_less_than_one with (f:=res <- c;; ret (Q res)).
+    exact H1.
+  }
+  - pose proof ProbMonad_compute_pr_exists as H9.
+    specialize (H9 (res <- c;; ret (P res))) as [r H8].
+    specialize (H0 r).
+    specialize (H0 H8).
+    pose proof ProbMonad_compute_pr_imply(A:=A).
+    specialize (H2 P Q c a r).
+    specialize (H2 H H8 H1).
+    rewrite H0 in H2.
+    exact H2.
+Qed.
 
 Theorem Always_bind_ret {A B: Type}:
   forall (c2: A -> ProbMonad.M B)
