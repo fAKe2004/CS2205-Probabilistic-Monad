@@ -971,83 +971,31 @@ Theorem ProbDistr_sum_distr_exists:
   forall {A: Type} (l: list (R * Distr A)),
     exists d, ProbDistr.sum_distr l d.
 Proof.
-Admitted.
-  (* intros.
+  intros.
+  pose proof (no_dup_in_equiv_list_exists (concat (map (fun '(r, d) => d.(pset)) l))) as [l' H]. 
   exists {|
     ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R l);
-    ProbDistr.pset := concat (map (fun '(_, d) => d.(pset)) l)
+    ProbDistr.pset := l'
   |}.
   split.
-  - (* Legal *)
+  - simpl.
+    destruct H as [? _].
+    apply H.
+  - intros.
+    destruct H as [_ H].
     split.
-    + (* NoDup *)
-      apply NoDup_concat.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r d] [H_eq H_in]].
-        simpl in H_eq.
-        subst.
-        destruct d.
-        simpl.
-        apply legal_no_dup.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r1 d1] [H_eq1 H_in1]].
-        apply in_map_iff in H0.
-        destruct H0 as [[r2 d2] [H_eq2 H_in2]].
-        simpl in *.
-        subst.
-        destruct d1, d2.
-        simpl.
-        apply legal_no_dup.
-    + (* Legal_nonneg *)
-      intros.
-      apply sum_nonneg.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      apply Rmult_le_pos.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-    + (* Legal_pset_valid *)
-      intros.
-      apply in_concat_iff.
-      exists (map (fun '(_, d) => d.(pset)) l).
-      split.
-      * apply in_map_iff.
-        exists (r, d).
-        split; [reflexivity | assumption].
-      * apply in_concat_iff.
-        exists d.(pset).
-        split.
-        -- apply in_map_iff.
-           exists (r, d).
-           split; [reflexivity | assumption].
-        -- apply legal_pset_valid.
-           apply Rmult_gt_0_compat.
-           ++ assumption.
-           ++ apply legal_nonneg.
-    + (* Legal_prob_1 *)
-      unfold sum_prob.
-      apply sum_eq.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      destruct d.
+    + intros.
+      simpl in H0.
+      rewrite H.
+      apply H0.
+    + intros.
       simpl.
-      apply legal_prob_1.
-  - (* Prob equal *)
-    intros.
+      rewrite <- H.
+      apply H0.
+  - intros.
+    simpl.
     reflexivity.
-Qed. *)
+Qed.
 
 (* 
   Name: ProbDistr_sum_distr_legal
