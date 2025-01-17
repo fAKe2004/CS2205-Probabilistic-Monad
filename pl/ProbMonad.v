@@ -1317,13 +1317,7 @@ Proof.
   }
   specialize (ProbDistr_sum_distr_legal l ds Hl_Forall_legal Hds) as Hds_legal.
   tauto.
-- (* Legal_unique *)
-  (*
-
-  *)
-- (* Legal_congr *)
-  (* direct collary of ProbMonad_bind_congr *)
-Admitted
+Admitted.
 
     
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
