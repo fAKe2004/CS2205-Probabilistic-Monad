@@ -12,6 +12,12 @@ Local Open Scope list.
 (* Adds on *)
 Require Import Classical.
 
+(*********************************************************)
+(**                                                      *)
+(** General Auxiliary Theorems                           *)
+(**                                                      *)
+(*********************************************************)
+
 (***
   eq_dec adds-on
 ***)
@@ -87,6 +93,29 @@ Proof.
   + unfold Transitive.
     intros.
     transitivity (f y); tauto.
+Qed.
+
+(*
+  Name forall_exists_Forall2_exists:
+  Property: Auxiliary Theorem
+  Description:
+    if forall a, exists b s.t. P a b is satisfied, then 
+    forall l1: list A, 
+      exists l2: list B s.t. Forall2 P l1 l2 is satisfied
+*)
+Theorem forall_exists_Forall2_exists:
+  forall {A B: Type} (rel: A->B->Prop) (l1: list A),
+    (forall a : A, exists b : B, rel a b) -> exists l2, Forall2 rel l1 l2.
+Proof.
+  intros.
+  induction l1 as [| head ltail].
+  - exists [].
+    constructor.
+  - destruct IHltail as [ltail' IH].
+    specialize (H head).
+    destruct H as [head' Hhead'].
+    exists (head' :: ltail').
+    constructor; [tauto | tauto].
 Qed.
 
 (*********************************************************)
@@ -930,6 +959,146 @@ Proof.
         reflexivity.
       -- tauto.
 Qed.
+
+
+(* 
+  Name: ProbDistr_sum_distr_exists
+  Property: Auxiliary Theorem
+  Description:
+    For any list of weighted distributions, there exists a summed distribution.
+*)
+Theorem ProbDistr_sum_distr_exists:
+  forall {A: Type} (l: list (R * Distr A)),
+    exists d, ProbDistr.sum_distr l d.
+Proof.
+Admitted.
+  (* intros.
+  exists {|
+    ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R l);
+    ProbDistr.pset := concat (map (fun '(_, d) => d.(pset)) l)
+  |}.
+  split.
+  - (* Legal *)
+    split.
+    + (* NoDup *)
+      apply NoDup_concat.
+      * intros.
+        apply in_map_iff in H.
+        destruct H as [[r d] [H_eq H_in]].
+        simpl in H_eq.
+        subst.
+        destruct d.
+        simpl.
+        apply legal_no_dup.
+      * intros.
+        apply in_map_iff in H.
+        destruct H as [[r1 d1] [H_eq1 H_in1]].
+        apply in_map_iff in H0.
+        destruct H0 as [[r2 d2] [H_eq2 H_in2]].
+        simpl in *.
+        subst.
+        destruct d1, d2.
+        simpl.
+        apply legal_no_dup.
+    + (* Legal_nonneg *)
+      intros.
+      apply sum_nonneg.
+      intros.
+      apply in_map_iff in H.
+      destruct H as [[r d] [H_eq H_in]].
+      simpl in H_eq.
+      subst.
+      apply Rmult_le_pos.
+      * destruct d.
+        simpl.
+        apply legal_nonneg.
+      * destruct d.
+        simpl.
+        apply legal_nonneg.
+    + (* Legal_pset_valid *)
+      intros.
+      apply in_concat_iff.
+      exists (map (fun '(_, d) => d.(pset)) l).
+      split.
+      * apply in_map_iff.
+        exists (r, d).
+        split; [reflexivity | assumption].
+      * apply in_concat_iff.
+        exists d.(pset).
+        split.
+        -- apply in_map_iff.
+           exists (r, d).
+           split; [reflexivity | assumption].
+        -- apply legal_pset_valid.
+           apply Rmult_gt_0_compat.
+           ++ assumption.
+           ++ apply legal_nonneg.
+    + (* Legal_prob_1 *)
+      unfold sum_prob.
+      apply sum_eq.
+      intros.
+      apply in_map_iff in H.
+      destruct H as [[r d] [H_eq H_in]].
+      simpl in H_eq.
+      subst.
+      destruct d.
+      simpl.
+      apply legal_prob_1.
+  - (* Prob equal *)
+    intros.
+    reflexivity.
+Qed. *)
+
+(* 
+  Name: ProbDistr_sum_distr_legal
+  Property: Auxiliary Theorem
+  Description:
+    if the Forall (r, d) in l : r >= 0 /\ legal d, 
+    then ds: sum_distr l ds, ds is legal.
+*)
+Theorem ProbDistr_sum_distr_legal:
+  forall {A: Type} (l: list (R * Distr A)) (ds: Distr A),
+    Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l ->
+    ProbDistr.sum_distr l ds ->
+    ProbDistr.legal ds.
+Proof.
+  intros A l ds HForall Hsum_distr.
+  split.
+  - (* NoDup *)
+    destruct Hsum_distr as [? _ _].
+    exact sum_pset_no_dup.
+  - (* Legal_nonneg *)
+    intros.
+    destruct Hsum_distr as [_ _ Hprob].
+    rewrite Hprob. (* have to rewrite first to avoid redundant assumption at induction *)
+    clear Hprob.
+    induction l as [| head l_tail].
+    + simpl.
+      nra.
+    + 
+    assert (Forall
+    (fun '(r, d) =>
+     (r >= 0)%R /\
+     ProbDistr.legal d) l_tail) as Hl_tail. {
+      inversion HForall; tauto.
+     }
+     specialize (IHl_tail Hl_tail) as Hl_tail_ge0.
+     destruct head as [r d].
+     simpl.
+
+     assert ((r * d.(prob) a >= 0)%R) as Hhead_ge0. {
+      inversion HForall.
+      destruct H1 as [Hr_ge0 Hd_legal].
+      pose proof (ProbDistr.legal_nonneg d Hd_legal) as Hproba_ge0.
+      specialize (Hproba_ge0 a).
+      nra.
+    }
+    nra.
+  -  
+
+Admitted.
+
+
 (*********************************************************)
 (**                                                      *)
 (** Probability Monad                                    *)
@@ -1087,35 +1256,74 @@ Lemma __bind_legal {A B: Type}:
       Legal (__bind f g).
 Proof.
   intros f g Hf Hg.
+
+
   split.
   - (* Legal_exists *)
-    destruct Hf as [d_f Hf].
-    destruct d_f as [d Hf_in_f].
-    specialize (Hf d) as Hff.
-    remember d.(pset) as elements.
-    induction elements.
-    + (* If d_f.(pset) is empty *)
-      exists {| 
-        ProbDistr.prob := fun _ => 0%R;
-        ProbDistr.pset := []
-      |}.
-      unfold __bind.
-      exists d, [].
-      split.
-      {
-        exact Hf_in_f.
-      }
-      split.
-      * rewrite <- Heqelements.
-        constructor.
-      * split.
-      (* -- reflexivity.
-        -- reflexivity.   
-      + (* If d_f.(pset) is a :: rest *)
-      (* From g a, obtain d_g(a) ∈ g a *)
-      specialize (Hg a) as [d_g H_d_g].
-       *)
-       Admitted.
+  (*
+    Idea:
+    use legal_exists to obtain s0 \in f.(distr)
+    use forall_exists_Forall2_exists to obtain a list 'l' staisfying Forall2
+    use sum_distr_exists to obtain final distr.
+
+    pose exists final distr. and prove it.
+  *)
+  pose proof (Legal_exists f Hf) as [df Hdf].
+  remember (fun (a : A) '(r, d0) =>
+  r = df.(prob) a /\ d0 ∈ g a) as rel.
+  assert (forall a: A, exists (rd: R * Distr B), rel a rd) as Hex_aux. {
+    intros.
+    specialize (Hg a).
+    apply Legal_exists in Hg.
+    destruct Hg as [d Hg].
+    exists ((df.(prob) a), d).
+    subst rel.
+    split; [reflexivity | exact Hg].
+  }
+  pose proof (forall_exists_Forall2_exists rel df.(pset) Hex_aux) as [l Hl].
+  specialize (ProbDistr_sum_distr_exists l) as [ds Hds].
+  exists ds.
+  sets_unfold.
+  exists df, l.
+  subst rel.
+  split; [exact Hdf | ].
+  split; [exact Hl | exact Hds].
+- (* Legal_legal*)
+  (*
+    Idea:
+    use ProbDistr_sum_distr_Legal.
+  *)
+  intros ds Hds.
+  destruct Hds as [df [l [Hdf [Hl Hds]]]].
+  assert (Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l) as Hl_Forall_legal. {
+    clear Hds.
+    induction Hl as [| x y lx_tail ly_tail].
+    - constructor.
+    - destruct y as [r d].
+      destruct H as [Hr Hd].
+      constructor.
+      + destruct Hf as [_ Hdf_legal _ _].
+        specialize (Hdf_legal df Hdf).
+        pose proof (ProbDistr.legal_nonneg df Hdf_legal) as H_ge0.
+        specialize (H_ge0 x).
+        subst r.
+        
+        specialize (Hg x) as Hg.
+        destruct Hg as [_ Hd_legal _ _].
+        specialize (Hd_legal d Hd).
+
+        tauto.
+      + exact IHHl.
+  }
+  specialize (ProbDistr_sum_distr_legal l ds Hl_Forall_legal Hds) as Hds_legal.
+  tauto.
+- (* Legal_unique *)
+  (*
+
+  *)
+- (* Legal_congr *)
+  (* direct collary of ProbMonad_bind_congr *)
+Admitted
 
     
 Definition bind {A B: Type} (f: M A) (g: A -> M B): M B :=
@@ -2066,95 +2274,6 @@ Proof.
       exact H4.
 Qed.
 
-(* 
-  Name: ProbDistr_sum_distr_exists
-  Property: Auxiliary Theorem
-  Description:
-    For any list of weighted distributions, there exists a summed distribution.
-*)
-Theorem ProbDistr_sum_distr_exists:
-  forall {A: Type} (l: list (R * Distr A)),
-    exists d, ProbDistr.sum_distr l d.
-Proof.
-Admitted.
-  (* intros.
-  exists {|
-    ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R l);
-    ProbDistr.pset := concat (map (fun '(_, d) => d.(pset)) l)
-  |}.
-  split.
-  - (* Legal *)
-    split.
-    + (* NoDup *)
-      apply NoDup_concat.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r d] [H_eq H_in]].
-        simpl in H_eq.
-        subst.
-        destruct d.
-        simpl.
-        apply legal_no_dup.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r1 d1] [H_eq1 H_in1]].
-        apply in_map_iff in H0.
-        destruct H0 as [[r2 d2] [H_eq2 H_in2]].
-        simpl in *.
-        subst.
-        destruct d1, d2.
-        simpl.
-        apply legal_no_dup.
-    + (* Legal_nonneg *)
-      intros.
-      apply sum_nonneg.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      apply Rmult_le_pos.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-    + (* Legal_pset_valid *)
-      intros.
-      apply in_concat_iff.
-      exists (map (fun '(_, d) => d.(pset)) l).
-      split.
-      * apply in_map_iff.
-        exists (r, d).
-        split; [reflexivity | assumption].
-      * apply in_concat_iff.
-        exists d.(pset).
-        split.
-        -- apply in_map_iff.
-           exists (r, d).
-           split; [reflexivity | assumption].
-        -- apply legal_pset_valid.
-           apply Rmult_gt_0_compat.
-           ++ assumption.
-           ++ apply legal_nonneg.
-    + (* Legal_prob_1 *)
-      unfold sum_prob.
-      apply sum_eq.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      destruct d.
-      simpl.
-      apply legal_prob_1.
-  - (* Prob equal *)
-    intros.
-    reflexivity.
-Qed. *)
-
-
 (*
   Description:
     bind operation preserves the imply_event relation 
@@ -2661,28 +2780,7 @@ Qed.
 (* Admitted. * Level 3 *)
 
     
-(*
-  Name forall_exists_Forall2_exists:
-  Property: Auxiliary Theorem
-  Description:
-    if forall a, exists b s.t. P a b is satisfied, then 
-    forall l1: list A, 
-      exists l2: list B s.t. Forall2 P l1 l2 is satisfied
-*)
-Theorem forall_exists_Forall2_exists:
-  forall {A B: Type} (rel: A->B->Prop) (l1: list A),
-    (forall a : A, exists b : B, rel a b) -> exists l2, Forall2 rel l1 l2.
-Proof.
-  intros.
-  induction l1 as [| head ltail].
-  - exists [].
-    constructor.
-  - destruct IHltail as [ltail' IH].
-    specialize (H head).
-    destruct H as [head' Hhead'].
-    exists (head' :: ltail').
-    constructor; [tauto | tauto].
-Qed.
+
 
 (* 
   Property: Auxiliary Theorem

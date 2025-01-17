@@ -274,6 +274,27 @@ Theorem is_det_prob_01:
     ProbDistr.is_det a d ->
     ((a = b -> d.(prob) b = 1%R) /\ (a <> b -> d.(prob) b = 0%R)).
 ```
+
+### 16. ProbDistr_sum_distr_exists
+  For any list of weighted distributions, there exists a summed distribution.
+```coq
+Theorem ProbDistr_sum_distr_exists:
+  forall {A: Type} (l: list (R * Distr A)),
+    exists d, ProbDistr.sum_distr l d.
+```
+
+### 17. ProbDistr_sum_distr_legal
+  if the Forall (r, d) in l : r >= 0 /\ legal d, 
+  then ds: sum_distr l ds, ds is legal.
+
+```coq
+Theorem ProbDistr_sum_distr_legal:
+  forall {A: Type} (l: list (R * Distr A)) (ds: Distr A),
+    Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l ->
+    ProbDistr.sum_distr l ds ->
+    ProbDistr.legal ds.
+```
+
 ---
 
 # Note:
