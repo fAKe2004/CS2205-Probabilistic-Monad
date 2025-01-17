@@ -2626,6 +2626,12 @@ Lemma bind_assoc:
          (h: B -> ProbMonad.M C),
   bind (bind f g) h ==
   bind f (fun a => bind (g a) h).
+Proof.
+  intros.
+  unfold ProbMonad.equiv.
+  sets_unfold.
+  intros d.
+  split.
 Admitted. (** Level 3 *)
 
 Lemma bind_assoc_event:
@@ -2636,7 +2642,23 @@ Lemma bind_assoc_event:
   ProbMonad.equiv_event
     (bind (bind f g) h)
     (bind f (fun a => bind (g a) h)).
-Admitted. (** Level 3 *)
+Proof.
+  intros.
+  unfold ProbMonad.equiv_event.
+  pose proof bind_assoc _ _ _ f g h as H_bind_assoc.
+  unfold ProbMonad.equiv in H_bind_assoc.
+  sets_unfold in H_bind_assoc.
+  pose proof (bind (bind f g) h).(legal).(Legal_exists) as [d Hd].
+  exists d, d.
+  repeat split.
+  - apply Hd.
+  - specialize (H_bind_assoc d).
+    destruct H_bind_assoc as [? _].
+    apply H in Hd.
+    apply Hd.
+  - reflexivity.
+Qed.
+(** Admitted.  Level 3 *)
 
 
 (*
