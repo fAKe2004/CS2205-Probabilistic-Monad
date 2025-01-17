@@ -2858,4 +2858,5 @@ Proof.
     specialize (sum_distr_is_det_list_exists ds Hds_legal) as [ds_list [H_Forall2 H_sum_distr]].
     exists ds_list.
     tauto.
-Qed.(* Admitted. * Level 3 *)
+Qed.
+(* Admitted. * Level 3 *)
