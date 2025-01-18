@@ -2182,13 +2182,81 @@ Qed.
 
 
 
+Axiom decidable : forall (P: Prop), {P} + {~P}.
+
+Definition sum_Prop {A: Type} (P: A -> Prop) (c: Distr A) : R :=
+  sum (map (fun a => match decidable (P a) with
+                     | left _ => c.(prob) a
+                     | right _ => 0%R
+                     end) c.(pset)).
+
+
+
+Lemma sum_map_leq:
+  forall (A : Type) (l : list A) (f g : A -> R),
+    (forall x, In x l -> (f x <= g x)%R) ->
+    (sum (map f l) <= sum (map g l))%R.
+Proof.
+  intros A l f g H.
+  induction l as [| x xs IH].
+  - simpl. lra.
+  - simpl. apply Rplus_le_compat.
+    + apply H. simpl. left. reflexivity.
+    + apply IH. intros y Hy. apply H. simpl. right. assumption.
+Qed.
+
+Lemma sum_Prop_imply:
+  forall {A: Type} (P Q: A -> Prop) (f1 : Distr A) (c: ProbMonad.M A),
+    (forall a, P a -> Q a) -> f1 ∈ c.(distr) ->
+    (sum_Prop P f1 <= sum_Prop Q f1)%R.
+Proof.
+  intros.
+  unfold sum_Prop.
+  apply sum_map_leq.
+  intros.
+  destruct (decidable (P x)).
+  + destruct (decidable (Q x)).
+    * lra.
+    * exfalso. apply n. apply H. assumption.
+  + destruct (decidable (Q x)).
+    * pose proof c.(legal).(Legal_legal) as H_legal.
+      specialize (H_legal f1 H0).
+      destruct H_legal as [_ ? _ _].
+      specialize (legal_nonneg x).
+      lra.
+    * lra.
+Qed.
+
+Lemma ProbMonad_compute_pr_less_than_one: forall (f : ProbMonad.M Prop) (r: R),
+  ProbMonad.compute_pr f r -> (r <= 1)%R.
+Admitted.
+
+Lemma compute_pr_sum_Prop:
+  forall {A: Type} (P: A -> Prop)(c: ProbMonad.M A) (f: Distr A)(d: R),
+    d ∈ ProbMonad.compute_pr (res <- c;; ret (P res)) -> f ∈ c.(distr)->
+    d = sum_Prop P f.
+Proof.
+Admitted.
+
 Lemma ProbMonad_compute_pr_imply: forall {A: Type} (P Q: A -> Prop) (c: ProbMonad.M A) (e d: R),
   (forall a, P a -> Q a) ->
   (d ∈ ProbMonad.compute_pr(res <- c;; ret (P res))) ->
   (e ∈ ProbMonad.compute_pr(res <- c;; ret (Q res))) -> ((e >= d)%R).
 Proof.
-Admitted. 
-
+  intros.
+  specialize (compute_pr_sum_Prop P) as H2.
+  specialize (compute_pr_sum_Prop Q) as H3.
+  pose proof c.(legal) as H_legal.
+  destruct H_legal as [H_legal1 _ _ _].
+  destruct H_legal1 as [d1 H_legal1].
+  specialize (H2 c d1 d).
+  specialize (H3 c d1 e).
+  specialize (H2 H0 H_legal1 ).
+  specialize (H3 H1 H_legal1).
+  apply sum_Prop_imply with (P:=P) (Q:=Q) (f1:=d1) (c:=c) in H.
+  + lra.
+  + exact H_legal1.
+Qed.
 Lemma eq_to_ineq :
   forall a : R,
    (a >= 1)%R -> (a <= 1)%R -> a = 1%R.
@@ -2196,10 +2264,6 @@ Proof.
   intros.
   lra.
 Qed.
-
-Lemma ProbMonad_compute_pr_less_than_one: forall (f : ProbMonad.M Prop) (r: R),
-  ProbMonad.compute_pr f r -> (r <= 1)%R.
-Admitted.
 
 Theorem Always_conseq: forall {A: Type} (P Q: A -> Prop),
   (forall a, P a -> Q a) ->
@@ -2232,6 +2296,27 @@ Theorem Always_bind_ret {A B: Type}:
     (forall a, c2 a = ret (f a)) ->
     (forall c1, Always c1 (fun a => P (f a)) <-> Always (a <- c1;; c2 a) P).
 Proof.
+  intros.
+  split.
+  + intros.
+    unfold Always in *.
+    unfold Hoare in *.
+    intros.
+    remember (res <- c1;; c2 res) as c.
+    pose proof c.(legal) as H_legal.
+    destruct H_legal as [H_legal1 _ _ _].
+    destruct H_legal1 as [d1 H_legal1].
+    apply compute_pr_sum_Prop with (c:=c) (f:=d1) in H1.
+    2:{exact H_legal1. }
+    - admit.
+  + intros.
+    unfold Always in *.
+    unfold Hoare in *.
+    intros.
+    remember (res <- c1;; c2 res) as c.
+    pose proof c.(legal) as H_legal.
+    destruct H_legal as [H_legal1 _ _ _].
+    destruct H_legal1 as [d1 H_legal1].
 Admitted. (** Level 1 *)
 
 Theorem compute_pr_exists: forall f, exists r, ProbMonad.compute_pr f r.
