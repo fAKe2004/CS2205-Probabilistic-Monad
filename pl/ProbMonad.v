@@ -1049,20 +1049,256 @@ Admitted.
     reflexivity.
 Qed. *)
 
+(*
+  unregistered
+  Name: ProbDistr_not_in_pset_prob_0:
+  Property: Auxiliary Theorem
+  Description:
+    if d is legal, then ~In a d.(pset) -> d.(prob) a = 0.
+
+  ... just to save time of reasoning this every time whenever you need it.
+*)
+Theorem ProbDistr_not_in_pset_prob_0:
+  forall {A: Type} (d : Distr A) (a : A),
+    ProbDistr.legal d->
+   ~In a d.(pset) ->  d.(prob) a = 0%R.
+Proof.
+  intros.
+  destruct H.
+  apply Rle_antisym.
+  - destruct (classic (d.(prob) a > 0)%R).
+    + specialize (legal_pset_valid a H).
+      contradiction.
+    + nra.
+  - specialize (legal_nonneg a).
+    nra.
+Qed.
+
+Theorem ProbDistr_sum_distr_legal_aux1_aux:
+  forall {A: Type} (l1 : list (A->R)) (l2 : list A),
+    sum (map (fun x => sum (map (fun f => f x) l1)) l2)
+    = 
+    sum (map (fun f => sum (map f l2)) l1).
+Proof.
+  intros.
+  symmetry.
+  induction l2 as [| a l2tail IHl2]; simpl.
+  - induction l1 as [| f l1tail IH]; simpl.
+    + reflexivity.
+    + rewrite IH.
+      nra.
+  - rewrite <-IHl2; clear IHl2.
+    induction l1 as [| f l1tail IHl1]; simpl.
+    + nra.
+    + rewrite IHl1.
+      nra.
+Qed.
+(* just an attmpt to seek the essence of ProbDistr_sum_distr_legal_aux1, succeeded! (though this aux1_aux is not actually used) *)
+
+(* direct auxiliary theorem for ProbDistr_sum_distr
+  maybe resuable in other proof.
+
+  essence : swap of summation order.
+*)
+Theorem ProbDistr_sum_distr_legal_aux1:
+  forall {A: Type} (l1: list (R * Distr A)) (l2 : list A),
+    (sum 
+      (map 
+        (fun a => (sum (map (fun '(r, d) => (r * d.(prob) a)) 
+          l1)))
+      l2) 
+    =
+     sum 
+      (map 
+        (fun '(r, d) => r * sum (map d.(prob) l2)) 
+          l1)
+    )%R.
+Proof.
+  intros.
+  symmetry.
+
+  induction l2 as [| a l2tail IHl2]; simpl.
+  - induction l1 as [| [r d] l1tail IHl2]; simpl.
+    + reflexivity.
+    + rewrite IHl2.
+      nra.
+  - rewrite <-IHl2; clear IHl2.
+    induction l1 as [| [r d] l1tail IHl1]; simpl.
+    + nra.
+    + rewrite IHl1.
+      nra.
+Qed. 
+
+(* direct auxiliary theorem for ProbDistr_sum_distr_legal_aux2 *)
+Theorem ProbDistr_sum_distr_legal_aux2_aux:
+  forall {A: Type} (l1 l2 : list A) (f: A->R),
+    NoDup l1 ->
+    NoDup l2 ->
+    (forall a, In a l1 -> In a l2) ->
+    (forall a, ~In a l1 -> f a = 0%R) ->
+    sum (map f l1) = sum (map f l2).
+Proof.
+  intros A l1 l2 f H_nodup1 H_nodup2 H_subset H_zero.
+  
+  (* Define a boolean membership test function *)
+  assert (exists in_test : A -> bool,
+          forall x, In x l1 <-> in_test x = true) as [in_test H_in_test].
+  {
+    exists (fun x => if In_dec eq_dec x l1 then true else false).
+    intros x.
+    destruct (In_dec eq_dec x l1); split; intro H; try discriminate; auto.
+  }
+  
+  (* First, prove by induction on any list l:
+     sum (map f l) = sum (map f (filter in_test l)) *)
+  assert (forall l, sum (map f l) = sum (map f (filter in_test l))) as H_filter_eq.
+  {
+    induction l as [|x l' IH].
+    - (* Base case: empty list *)
+      simpl. reflexivity.
+    - (* Inductive case *)
+      simpl.
+      destruct (in_test x) eqn:H_test.
+      + (* x is in l1 *)
+        simpl. f_equal.
+        exact IH.
+      + (* x is not in l1 *)
+        specialize (H_in_test x) as H_in_test_x.
+        assert (~ In x l1) as H_not_in_l1.
+        {
+          unfold not.
+          intros H_in.
+          apply H_in_test_x in H_in.
+          rewrite H_test in H_in.
+          discriminate.
+        }
+        specialize (H_zero x H_not_in_l1).
+        rewrite H_zero.
+        rewrite Rplus_0_l.
+        exact IH.
+  }
+  specialize (H_filter_eq l2) as H_filter_eq_l2.
+  rewrite H_filter_eq_l2.
+  
+  (* Next, prove that filter in_test l2 is a permutation of l1 *)
+  assert (Permutation l1 (filter in_test l2)) as H_perm.
+  {
+    apply NoDup_Permutation.
+    - exact H_nodup1.
+    - apply NoDup_filter.
+      exact H_nodup2.
+    - intro a.
+      split; intro H_in.
+      + (* -> direction *)
+        apply filter_In.
+        split.
+        * apply H_subset. exact H_in.
+        * apply H_in_test. exact H_in.
+      + (* <- direction *)
+        apply filter_In in H_in.
+        destruct H_in as [_ H_in].
+        apply H_in_test in H_in.
+        exact H_in.
+  }
+  
+  (* Finally, use permutation to show sums are equal *)
+  apply Permutation_map with (f:=f) in H_perm.
+  apply Permutation_sum_eq.
+  exact H_perm.
+Qed.
+
+(* direct auxiliary theorem for ProbDistr_sum_distr_legal *)
+Theorem ProbDistr_sum_distr_legal_aux2:
+  forall {A: Type} (l: list (R * Distr A)) (lpset : list A),
+    Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l ->
+    NoDup lpset ->
+    (forall a : A,
+      In a
+        (concat
+          (map (fun '(_, d) => d.(pset)) l))
+      -> In a lpset) (* key difference, this makes induction possible compared to <->*)
+    -> 
+    (sum
+      (map
+        (fun '(r, d) => (r * sum (map d.(prob) lpset)))
+          l) 
+    =
+    sum
+      (map
+        (fun '(r, d) => (r * sum (map d.(prob) d.(pset)))) 
+          l) )%R.
+Proof.
+  intros ? ? ? HForall HNoDup_lpset Hin_imply.
+  induction l as [| head ltail IH]; simpl.
+  - reflexivity.
+  - destruct head as [r d].
+    inversion HForall as [| ? ? Hhead Htail]; subst.
+    specialize (IH Htail).
+
+    assert (forall a : A,
+    In a
+      (concat
+         (map (fun '(_, d) => d.(pset)) ltail)) ->
+    In a lpset) as Hin_imply_tail. {
+      intros.
+      apply Hin_imply.
+      simpl.
+      apply in_app_iff.
+      right.
+      exact H.
+    }
+    specialize (IH Hin_imply_tail).
+    rewrite IH; clear IH Hin_imply_tail Htail HForall.
+    (* remains:
+        r * sum (map d.(prob) lpset) = r * sum (map d.(prob) d.(pset)
+    *)
+    assert (
+      forall a,
+        In a d.(pset) -> In a lpset
+    ) as Hin_imply_head. {
+      intros.
+      apply Hin_imply.
+      simpl.
+      apply in_app_iff.
+      left.
+      exact H.
+    }
+    clear Hin_imply.
+    destruct Hhead as [_ Hhead].
+    assert (sum (map d.(prob) lpset) = sum (map d.(prob) d.(pset)))
+    as H_eq. {
+      symmetry.
+      apply ProbDistr_sum_distr_legal_aux2_aux with (l1 := d.(pset)) (l2 := lpset).
+      - destruct Hhead.
+        apply legal_no_dup.
+      - apply HNoDup_lpset.
+      - exact Hin_imply_head.
+      - intros.
+        apply ProbDistr_not_in_pset_prob_0.
+        + apply Hhead.
+        + exact H.
+    }
+    rewrite H_eq.
+    reflexivity.
+Qed.
+
 (* 
   Name: ProbDistr_sum_distr_legal
   Property: Auxiliary Theorem
   Description:
     if the Forall (r, d) in l : r >= 0 /\ legal d, 
     then ds: sum_distr l ds, ds is legal.
+
+  used to prove __bind_legal: Legal_legal (i.e., resulting distribution is legal )
 *)
 Theorem ProbDistr_sum_distr_legal:
   forall {A: Type} (l: list (R * Distr A)) (ds: Distr A),
     Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l ->
+    sum (map (fun '(r, d) => r) l) = 1%R ->
     ProbDistr.sum_distr l ds ->
     ProbDistr.legal ds.
 Proof.
-  intros A l ds HForall Hsum_distr.
+  intros A l ds HForall Hsum_r Hsum_distr.
   split.
   - (* NoDup *)
     destruct Hsum_distr as [? _ _].
@@ -1071,7 +1307,7 @@ Proof.
     intros.
     destruct Hsum_distr as [_ _ Hprob].
     rewrite Hprob. (* have to rewrite first to avoid redundant assumption at induction *)
-    clear Hprob.
+    clear Hprob Hsum_r.
     induction l as [| head l_tail].
     + simpl.
       nra.
@@ -1094,9 +1330,209 @@ Proof.
       nra.
     }
     nra.
-  -  
+  - (* Legal_pset_valid *)
+    intros a H_g0.
+    destruct (classic (In a ds.(pset))) as [H_in | H_not_in].
+    + exact H_in.
+    + exfalso. (* lead to contradiction with H_g0 *)
+      destruct Hsum_distr as [_ Hpset Hprob].
 
-Admitted.
+      assert ((ds.(prob) a = 0)%R) as H_eq0. {
+        clear H_g0.
+        rewrite Hprob.
+        rewrite Hpset in H_not_in.
+        clear Hsum_r Hprob Hpset.
+        induction l as [| head ltail IH]; simpl.
+        - reflexivity.
+        - destruct head as [r d]; simpl in *.
+          assert (
+            Forall
+            (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d)
+            ltail
+          ) as Hltail by (inversion HForall; tauto).
+          assert (
+            (r >= 0)%R /\ ProbDistr.legal d
+          ) as Hhead by (inversion HForall; tauto).
+          
+          specialize (IH Hltail).
+
+          assert (~In a
+            (concat
+               (map (fun '(_, d) => d.(pset))
+                  ltail))
+          ) as H_not_in_tail. {
+            clear IH Hltail Hhead HForall.
+            unfold not in *.
+            intro H_in.
+            apply H_not_in.
+            apply in_app_iff.
+            right.
+            exact H_in.
+          }
+
+          specialize (IH H_not_in_tail).
+          rewrite IH. (*rewrite sum tail prob = 0*)
+          
+          destruct Hhead as [_ Hlegal].
+          destruct Hlegal as [_ Hnon_neg Hpset _].
+          specialize (Hnon_neg a).
+          specialize (Hpset a).
+          assert ((d.(prob) a <= 0)%R) as Hle0. {
+            apply Rnot_gt_le.
+            intro Hpos.
+            specialize (Hpset Hpos) as H_in.
+            apply H_not_in.
+            clear HForall IH Hltail Hnon_neg Hpset H_not_in_tail H_not_in.
+            apply in_app_iff; left.
+            exact H_in.
+          }
+          assert ((d.(prob) a = 0)%R) as H_eq0 by (nra).
+          nra.
+      }
+      (* H_eq0 H_g0 contradiction*)
+      nra.
+  - (* Legal_prob_1 *)
+    unfold sum_prob.
+    (* goal: 
+        sum (map ds.(prob) ds.(pset)) = 1
+
+        method:
+          FIRST:
+            forall lpset : list A
+                1. for a in lpset:
+                    sum += ds.(prob) a
+
+                2. for (r, d) in l:
+                    for a in lpset:
+                      tmp += d.(prob) a
+                    sum += tmp
+             these 2 summations are equal. (prove by induction)
+
+          SECOND:
+            sum [map (fun '(r, d) => r * sum (map d.(prob) d.(pset))]) l] = 1 (trivial)
+
+          To prove FIRST, H_aux0 to H_aux2 are used.
+    *)
+    destruct Hsum_distr as [Hnodup Hpset Hprob].
+
+    assert ( 
+      (* rewrite with sum_distr prob definition *)
+      forall lpset : list A,
+        (sum 
+          (map 
+            (fun a => 
+              (sum (map (fun '(r, d) => (r * d.(prob) a)) l)))
+          lpset) = sum (map ds.(prob) lpset))%R
+    ) as H_aux0. {
+      clear HForall Hnodup Hpset.
+      intro.
+      induction lpset as [| head lpset' IH]; simpl.
+      - reflexivity.
+      - rewrite IH; clear IH.
+        specialize (Hprob head).
+        rewrite Hprob.
+        reflexivity.
+    }
+
+    assert ( 
+      (* prove that, 
+          for i in [N], for j in [M]: sum += f_i (a_j)
+          <=>
+          for j in [M], for i in [N]: sum += f_i (a_j)
+
+         [in perfect N*M rectangle shape, 
+          we use lpset to pad d.(pset) to align it to ds.(pset)].
+      *)
+      forall lpset : list A,
+        (sum 
+          (map 
+            (fun a => 
+              (sum (map (fun '(r, d) => (r * d.(prob) a)) l)))
+          lpset) =
+        sum (map (fun '(r, d) => r * sum (map d.(prob) lpset)) l))%R
+    ) as H_aux1. {
+      intro lpset.
+      specialize (ProbDistr_sum_distr_legal_aux1 l lpset) as H_aux.
+      exact H_aux.
+    }
+
+    assert (
+      (*
+        convert the perfect rectangle shape to irregular shape.
+        remove padding[whose prob = 0] which aligns d.(pset) to ds.(pset).
+      *)
+      (sum
+        (map
+          (fun '(r, d) => (r * sum (map d.(prob) ds.(pset)))) 
+            l) 
+       =
+       sum
+        (map
+          (fun '(r, d) => (r * sum (map d.(prob) d.(pset)))) 
+            l) 
+      )%R
+    ) as H_aux2. {
+      clear H_aux0 H_aux1.
+      assert (forall a : A, In a (concat (map (fun '(_, d) => d.(pset)) l)) -> In a ds.(pset)) as Hin_imply. {
+        intro a.
+        specialize (Hpset a).
+        tauto.
+      }
+      
+      specialize (ProbDistr_sum_distr_legal_aux2 l ds.(pset) HForall Hnodup Hin_imply) as H.
+      exact H.
+    } (* H_aux2 *)
+
+    assert (
+      (* apply (legal d-> legal_prob_1 d) elementwise into l *)
+      (* the resulting form is the same as Hsum_r, so we are done *)
+      (sum
+        (map
+          (fun '(r, d) => (r * sum (map d.(prob) d.(pset)))) 
+            l) 
+        = 
+       sum (map
+          (fun '(r, d) => r) 
+            l) 
+      )%R
+    ) as H_aux3. {
+      clear Hsum_r Hnodup Hpset Hprob.
+      clear H_aux0 H_aux1 H_aux2.
+      induction l as [| head ltail IH]; simpl.
+      - reflexivity.
+      - destruct head as [r d].
+        assert (
+          Forall
+            (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) ltail) 
+        as Hl_tail 
+        by (inversion HForall; tauto).
+        specialize (IH Hl_tail).
+        rewrite IH.
+
+        assert (
+          (r * sum (map d.(prob) d.(pset)) = r)%R
+        )
+        as H_head. {
+          inversion HForall; subst.
+          destruct H1 as [_ [_ _ _ Hlegal_prob]].
+          unfold sum_prob in Hlegal_prob.
+          rewrite Hlegal_prob.
+          nra.
+        }
+
+        rewrite H_head.
+        reflexivity.
+    } (* H_aux3 *)
+
+
+    specialize (H_aux0 ds.(pset)).
+    specialize (H_aux1 ds.(pset)).
+    rewrite <-H_aux0.
+    rewrite H_aux1.
+    rewrite H_aux2.
+    rewrite H_aux3.
+    apply Hsum_r.
+Qed.
 
 
 (*********************************************************)
