@@ -1907,17 +1907,56 @@ Proof.
   apply Permutation_sum_eq; assumption.
 Qed. *)
 
+Lemma Forall2_length: forall {A B} (R: A -> B -> Prop) l1 l2,
+  Forall2 R l1 l2 -> length l1 = length l2.
+Proof.
+  intros A B R l1 l2 H.
+  induction H.
+  - reflexivity. 
+  - simpl.
+    f_equal.
+    exact IHForall2.
+Qed.
 
-(* Theorem Permutation_imply_event_sum_distr_imply_event:
-  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
-    (exists L1',
-      Permutation L1 L1' /\
-      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1' L2) ->
-    ProbDistr.sum_distr L1 ds1 ->
-    ProbDistr.sum_distr L2 ds2 ->
-    ProbDistr.imply_event ds1 ds2.
-Admitted. *)
+Lemma Forall2_in_right {A B} (R: A -> B -> Prop) (x: A) (l1: list A) (l2: list B) (b: B):
+  Forall2 R l1 l2 -> In b l2 -> exists a, In a l1 /\ R a b.
+Proof.
+  intros H Hin.
+  induction H.
+  - simpl in Hin. contradiction.
+  - simpl in Hin.
+    destruct Hin.
+    + exists x0.
+      split.
+      * left.
+        reflexivity.
+      * rewrite <- H1.
+        exact H.
+    + apply IHForall2 in H1 as HH.
+      destruct HH as [a [Ha HR]].
+      exists a.
+      split; [right; exact Ha | exact HR].
+Qed.
 
+Lemma Forall2_in_left {A B} (R: A -> B -> Prop) (a: A) (l1: list A) (l2: list B):
+  Forall2 R l1 l2 -> In a l1 -> exists b, In b l2 /\ R a b.
+Proof.
+  intros H Hin.
+  induction H.
+  - simpl in Hin. contradiction.
+  - simpl in Hin.
+    destruct Hin as [Heq | Hin'].
+    + exists y.
+      split.
+      * left.
+        reflexivity.
+      * rewrite <- Heq.
+        exact H.
+    + apply IHForall2 in Hin' as HH.
+      destruct HH as [b [Hb HR]].
+      exists b.
+      split; [right; exact Hb | exact HR].
+Qed.
 
 (*
   Name: bind_congr_aux
@@ -1948,11 +1987,103 @@ Proof.
     rewrite Hprobx.
     rewrite Hproby.
     assert (Permutation lx ly) as Hlx_ly.
-    {
-      clear Hprobx Hproby.
-      admit.
+    {   
+      (* First, we'll use Forall2_length to get lengths equal *)
+      assert (length lx = length dx.(pset)) as Hlen_lx. {
+        apply Forall2_length in Hlx.
+        rewrite Hlx.
+        reflexivity.
+      }
+      assert (length ly = length dy.(pset)) as Hlen_ly. {
+        apply Forall2_length in Hly.
+        rewrite Hly.
+        reflexivity.
+      }
+      assert (length lx = length ly) as Hlen_eq. {
+        rewrite Hlen_lx, Hlen_ly.
+        apply Permutation_length.
+        exact Hperm.
+      }
+
+      (* Next, we'll use NoDup_Permutation to prove the permutation *)
+      apply NoDup_Permutation.
+      - (* Prove NoDup lx *)
+        (* This follows from Forall2 with dx.(pset) which has NoDup *)
+        assert (NoDup lx) as Hnodup_lx. {
+          (* We'll prove this by contradiction *)
+          remember dx.(pset) as lpset.
+          remember lx as lrd.
+          assert (Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (g a).(distr)) lpset lrd) as Hf2. {
+            subst. exact Hlx.
+          }
+          clear Heqlpset Heqlrd.
+          admit.
+          (* Prove by induction on the Forall2 relation *)
+          (* induction Hf2.
+          - constructor.  (* Empty list case *)
+          - constructor.
+            + (* Prove y ∉ l' *)
+              intro Hin.
+              (* Use Forall2_in_right to get corresponding element in lpset *)
+              apply Forall2_in_right with (x:=x) in IHHf2 as [a' [Ha' [Hr' Hd']]]; [| exact Hin].
+              (* Get the original element's properties *)
+              destruct y as [r d].
+              destruct H as [Hr Hd].
+              (* Show contradiction using NoDup of lpset *)
+              assert (NoDup lpset). {
+                destruct dx.(legal) as [Hnodup _].
+                exact Hnodup.
+              }
+              assert (x = a'). {
+                (* Both x and a' map to same r through prob *)
+                subst r.
+                rewrite Hr' in Hr.
+                (* Use prob properties to show x = a' *)
+                destruct dx.(legal) as [_ [Hprob_ge0 Hprob_valid _]].
+                specialize (Hprob_valid x).
+                specialize (Hprob_valid a').
+                destruct (classic (dx.(prob) x > 0)%R) as [Hpos|Hnpos].
+                - specialize (Hprob_valid Hpos).
+                  assert (In a' lpset). {
+                    apply Forall2_in_left in Hin as [? [? _]].
+                    exact H.
+                  }
+                  apply NoDup_cons_iff in H0.
+                  destruct H0 as [Hnotin _].
+                  assert (x = a' \/ In x l'). {
+                    right. exact Hnotin.
+                  }
+                  tauto.
+                - specialize (Hprob_ge0 x).
+                  nra.
+              }
+              subst a'.
+              (* Now we have x appearing twice in lpset *)
+              apply NoDup_cons_iff in H0.
+              destruct H0 as [Hnotin _].
+              assert (In x lpset). {
+                apply Forall2_in_left in Hin as [? [? _]].
+                exact H.
+              }
+              contradiction.
+            + exact IHHf2. *)
+        }
+        exact Hnodup_lx.
+      - (* Prove NoDup ly *)
+        (* Similar to above *)
+        admit. (* Can be proved using dy's legality *)
+        
+      - (* Prove elements are the same *)
+        intros [r d].
+        (* The key is to show that each (r,d) pair in lx corresponds to 
+          exactly one element in ly through the permutation Hperm *)
+        split; intro Hin.
+        + (* -> direction *)
+          admit.
+        + (* <- direction *)
+          (* Similar to above direction *)
+          admit.
     }
-    (* Then use permutation to prove sum equality *)
     apply Permutation_sum_eq.
     apply Permutation_map.
     exact Hlx_ly.
