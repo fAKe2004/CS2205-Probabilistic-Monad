@@ -1918,23 +1918,6 @@ Qed. *)
     ProbDistr.imply_event ds1 ds2.
 Admitted. *)
 
-Lemma Permutation_in_remove:
-  forall (A : Type) (a : A) (l : list A),
-    In a l ->
-    Permutation l (a :: remove eq_dec a l).
-Proof.
-  intros.
-  induction l1 as [| head ltail].
-  - exists [].
-    constructor.
-  - destruct IHltail as [ltail' IH].
-    specialize (H head).
-    destruct H as [head' Hhead'].
-    exists (head' :: ltail').
-    constructor; [tauto | tauto].
-Qed.
-
-
 
 (*
   Name: bind_congr_aux
@@ -2040,27 +2023,22 @@ Qed.
           pointwise_relation _ ProbMonad.imply_event ==>
           ProbMonad.imply_event)
     (@bind _ ProbMonad A Prop).
-Admitted.
-(* Proof.
+Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.imply_event.
   simpl.
   unfold ProbMonad.__bind.
   unfold pointwise_relation in H_eq_g.
-  
-  (* Get distributions from fx and fy using Legal_exists *)
 
   (* Get distributions from fx and fy *)
   destruct (fx.(legal).(Legal_exists)) as [dx Hdx].
   destruct (fy.(legal).(Legal_exists)) as [dy Hdy].
   
-  (* Since fx and fy are equivalent, dx and dy are equivalent *)
-  assert (ProbDistr.equiv dx dy) as Heq_d. {
-    apply fx.(legal).(Legal_unique) with (d2 := dy).
-    - exact Hdx.
-    - apply H_eq_f.
-      exact Hdy.
+  (* Use H_eq_f to show dx and dy are related *)
+  assert (dy ∈ fx.(distr)) as Hdy_fx. {
+    apply H_eq_f.
+    exact Hdy.
   }
 
   (* For each a in dx.(pset), get distributions from gx and gy *)
@@ -2143,8 +2121,7 @@ Admitted.
     + apply ProbDistr_imply_event_refl_setoid.
       apply ProbDistr_equiv_equiv_event.
       exact Hequiv.
-Qed. *)
-(* Admitted. * Level 2 *)
+Qed.
 
 
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
