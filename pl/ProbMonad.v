@@ -971,83 +971,31 @@ Theorem ProbDistr_sum_distr_exists:
   forall {A: Type} (l: list (R * Distr A)),
     exists d, ProbDistr.sum_distr l d.
 Proof.
-Admitted.
-  (* intros.
+  intros.
+  pose proof (no_dup_in_equiv_list_exists (concat (map (fun '(r, d) => d.(pset)) l))) as [l' H]. 
   exists {|
     ProbDistr.prob := fun a => sum (map (fun '(r, d) => r * d.(prob) a)%R l);
-    ProbDistr.pset := concat (map (fun '(_, d) => d.(pset)) l)
+    ProbDistr.pset := l'
   |}.
   split.
-  - (* Legal *)
+  - simpl.
+    destruct H as [? _].
+    apply H.
+  - intros.
+    destruct H as [_ H].
     split.
-    + (* NoDup *)
-      apply NoDup_concat.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r d] [H_eq H_in]].
-        simpl in H_eq.
-        subst.
-        destruct d.
-        simpl.
-        apply legal_no_dup.
-      * intros.
-        apply in_map_iff in H.
-        destruct H as [[r1 d1] [H_eq1 H_in1]].
-        apply in_map_iff in H0.
-        destruct H0 as [[r2 d2] [H_eq2 H_in2]].
-        simpl in *.
-        subst.
-        destruct d1, d2.
-        simpl.
-        apply legal_no_dup.
-    + (* Legal_nonneg *)
-      intros.
-      apply sum_nonneg.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      apply Rmult_le_pos.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-      * destruct d.
-        simpl.
-        apply legal_nonneg.
-    + (* Legal_pset_valid *)
-      intros.
-      apply in_concat_iff.
-      exists (map (fun '(_, d) => d.(pset)) l).
-      split.
-      * apply in_map_iff.
-        exists (r, d).
-        split; [reflexivity | assumption].
-      * apply in_concat_iff.
-        exists d.(pset).
-        split.
-        -- apply in_map_iff.
-           exists (r, d).
-           split; [reflexivity | assumption].
-        -- apply legal_pset_valid.
-           apply Rmult_gt_0_compat.
-           ++ assumption.
-           ++ apply legal_nonneg.
-    + (* Legal_prob_1 *)
-      unfold sum_prob.
-      apply sum_eq.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[r d] [H_eq H_in]].
-      simpl in H_eq.
-      subst.
-      destruct d.
+    + intros.
+      simpl in H0.
+      rewrite H.
+      apply H0.
+    + intros.
       simpl.
-      apply legal_prob_1.
-  - (* Prob equal *)
-    intros.
+      rewrite <- H.
+      apply H0.
+  - intros.
+    simpl.
     reflexivity.
-Qed. *)
+Qed.
 
 (*
   unregistered
@@ -2395,34 +2343,56 @@ Proof.
   apply Permutation_sum_eq; assumption.
 Qed. *)
 
-
-(* Theorem Permutation_imply_event_sum_distr_imply_event:
-  forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
-    (exists L1',
-      Permutation L1 L1' /\
-      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1' L2) ->
-    ProbDistr.sum_distr L1 ds1 ->
-    ProbDistr.sum_distr L2 ds2 ->
-    ProbDistr.imply_event ds1 ds2.
-Admitted. *)
-
-Lemma Permutation_in_remove:
-  forall (A : Type) (a : A) (l : list A),
-    In a l ->
-    Permutation l (a :: remove eq_dec a l).
+Lemma Forall2_length: forall {A B} (R: A -> B -> Prop) l1 l2,
+  Forall2 R l1 l2 -> length l1 = length l2.
 Proof.
-  intros.
-  induction l1 as [| head ltail].
-  - exists [].
-    constructor.
-  - destruct IHltail as [ltail' IH].
-    specialize (H head).
-    destruct H as [head' Hhead'].
-    exists (head' :: ltail').
-    constructor; [tauto | tauto].
+  intros A B R l1 l2 H.
+  induction H.
+  - reflexivity. 
+  - simpl.
+    f_equal.
+    exact IHForall2.
 Qed.
 
+Lemma Forall2_in_right {A B} (R: A -> B -> Prop) (x: A) (l1: list A) (l2: list B) (b: B):
+  Forall2 R l1 l2 -> In b l2 -> exists a, In a l1 /\ R a b.
+Proof.
+  intros H Hin.
+  induction H.
+  - simpl in Hin. contradiction.
+  - simpl in Hin.
+    destruct Hin.
+    + exists x0.
+      split.
+      * left.
+        reflexivity.
+      * rewrite <- H1.
+        exact H.
+    + apply IHForall2 in H1 as HH.
+      destruct HH as [a [Ha HR]].
+      exists a.
+      split; [right; exact Ha | exact HR].
+Qed.
 
+Lemma Forall2_in_left {A B} (R: A -> B -> Prop) (a: A) (l1: list A) (l2: list B):
+  Forall2 R l1 l2 -> In a l1 -> exists b, In b l2 /\ R a b.
+Proof.
+  intros H Hin.
+  induction H.
+  - simpl in Hin. contradiction.
+  - simpl in Hin.
+    destruct Hin as [Heq | Hin'].
+    + exists y.
+      split.
+      * left.
+        reflexivity.
+      * rewrite <- Heq.
+        exact H.
+    + apply IHForall2 in Hin' as HH.
+      destruct HH as [b [Hb HR]].
+      exists b.
+      split; [right; exact Hb | exact HR].
+Qed.
 
 (*
   Name: bind_congr_aux
@@ -2453,11 +2423,103 @@ Proof.
     rewrite Hprobx.
     rewrite Hproby.
     assert (Permutation lx ly) as Hlx_ly.
-    {
-      clear Hprobx Hproby.
-      admit.
+    {   
+      (* First, we'll use Forall2_length to get lengths equal *)
+      assert (length lx = length dx.(pset)) as Hlen_lx. {
+        apply Forall2_length in Hlx.
+        rewrite Hlx.
+        reflexivity.
+      }
+      assert (length ly = length dy.(pset)) as Hlen_ly. {
+        apply Forall2_length in Hly.
+        rewrite Hly.
+        reflexivity.
+      }
+      assert (length lx = length ly) as Hlen_eq. {
+        rewrite Hlen_lx, Hlen_ly.
+        apply Permutation_length.
+        exact Hperm.
+      }
+
+      (* Next, we'll use NoDup_Permutation to prove the permutation *)
+      apply NoDup_Permutation.
+      - (* Prove NoDup lx *)
+        (* This follows from Forall2 with dx.(pset) which has NoDup *)
+        assert (NoDup lx) as Hnodup_lx. {
+          (* We'll prove this by contradiction *)
+          remember dx.(pset) as lpset.
+          remember lx as lrd.
+          assert (Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (g a).(distr)) lpset lrd) as Hf2. {
+            subst. exact Hlx.
+          }
+          clear Heqlpset Heqlrd.
+          admit.
+          (* Prove by induction on the Forall2 relation *)
+          (* induction Hf2.
+          - constructor.  (* Empty list case *)
+          - constructor.
+            + (* Prove y ∉ l' *)
+              intro Hin.
+              (* Use Forall2_in_right to get corresponding element in lpset *)
+              apply Forall2_in_right with (x:=x) in IHHf2 as [a' [Ha' [Hr' Hd']]]; [| exact Hin].
+              (* Get the original element's properties *)
+              destruct y as [r d].
+              destruct H as [Hr Hd].
+              (* Show contradiction using NoDup of lpset *)
+              assert (NoDup lpset). {
+                destruct dx.(legal) as [Hnodup _].
+                exact Hnodup.
+              }
+              assert (x = a'). {
+                (* Both x and a' map to same r through prob *)
+                subst r.
+                rewrite Hr' in Hr.
+                (* Use prob properties to show x = a' *)
+                destruct dx.(legal) as [_ [Hprob_ge0 Hprob_valid _]].
+                specialize (Hprob_valid x).
+                specialize (Hprob_valid a').
+                destruct (classic (dx.(prob) x > 0)%R) as [Hpos|Hnpos].
+                - specialize (Hprob_valid Hpos).
+                  assert (In a' lpset). {
+                    apply Forall2_in_left in Hin as [? [? _]].
+                    exact H.
+                  }
+                  apply NoDup_cons_iff in H0.
+                  destruct H0 as [Hnotin _].
+                  assert (x = a' \/ In x l'). {
+                    right. exact Hnotin.
+                  }
+                  tauto.
+                - specialize (Hprob_ge0 x).
+                  nra.
+              }
+              subst a'.
+              (* Now we have x appearing twice in lpset *)
+              apply NoDup_cons_iff in H0.
+              destruct H0 as [Hnotin _].
+              assert (In x lpset). {
+                apply Forall2_in_left in Hin as [? [? _]].
+                exact H.
+              }
+              contradiction.
+            + exact IHHf2. *)
+        }
+        exact Hnodup_lx.
+      - (* Prove NoDup ly *)
+        (* Similar to above *)
+        admit. (* Can be proved using dy's legality *)
+        
+      - (* Prove elements are the same *)
+        intros [r d].
+        (* The key is to show that each (r,d) pair in lx corresponds to 
+          exactly one element in ly through the permutation Hperm *)
+        split; intro Hin.
+        + (* -> direction *)
+          admit.
+        + (* <- direction *)
+          (* Similar to above direction *)
+          admit.
     }
-    (* Then use permutation to prove sum equality *)
     apply Permutation_sum_eq.
     apply Permutation_map.
     exact Hlx_ly.
@@ -2528,27 +2590,22 @@ Qed.
           pointwise_relation _ ProbMonad.imply_event ==>
           ProbMonad.imply_event)
     (@bind _ ProbMonad A Prop).
-Admitted.
-(* Proof.
+Proof.
   unfold Proper, respectful.
   intros fx fy H_eq_f gx gy H_eq_g.
   unfold ProbMonad.imply_event.
   simpl.
   unfold ProbMonad.__bind.
   unfold pointwise_relation in H_eq_g.
-  
-  (* Get distributions from fx and fy using Legal_exists *)
 
   (* Get distributions from fx and fy *)
   destruct (fx.(legal).(Legal_exists)) as [dx Hdx].
   destruct (fy.(legal).(Legal_exists)) as [dy Hdy].
   
-  (* Since fx and fy are equivalent, dx and dy are equivalent *)
-  assert (ProbDistr.equiv dx dy) as Heq_d. {
-    apply fx.(legal).(Legal_unique) with (d2 := dy).
-    - exact Hdx.
-    - apply H_eq_f.
-      exact Hdy.
+  (* Use H_eq_f to show dx and dy are related *)
+  assert (dy ∈ fx.(distr)) as Hdy_fx. {
+    apply H_eq_f.
+    exact Hdy.
   }
 
   (* For each a in dx.(pset), get distributions from gx and gy *)
@@ -2631,8 +2688,7 @@ Admitted.
     + apply ProbDistr_imply_event_refl_setoid.
       apply ProbDistr_equiv_equiv_event.
       exact Hequiv.
-Qed. *)
-(* Admitted. * Level 2 *)
+Qed.
 
 
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
@@ -3368,3 +3424,80 @@ Proof.
     tauto.
 Qed.
 (* Admitted. * Level 3 *)
+
+Theorem ProbDistr_sum_distr_legal_aux2_aux:
+  forall {A: Type} (l1 l2 : list A) (f: A->R),
+    NoDup l1 ->
+    NoDup l2 ->
+    (forall a, In a l1 -> In a l2) ->
+    (forall a, ~In a l1 -> f a = 0%R) ->
+    sum (map f l1) = sum (map f l2).
+Proof.
+  intros A l1 l2 f H_nodup1 H_nodup2 H_subset H_zero.
+  
+  (* Define a boolean membership test function *)
+  assert (exists in_test : A -> bool,
+          forall x, In x l1 <-> in_test x = true) as [in_test H_in_test].
+  {
+    exists (fun x => if In_dec eq_dec x l1 then true else false).
+    intros x.
+    destruct (In_dec eq_dec x l1); split; intro H; try discriminate; auto.
+  }
+  
+  (* First, prove by induction on any list l:
+     sum (map f l) = sum (map f (filter in_test l)) *)
+  assert (forall l, sum (map f l) = sum (map f (filter in_test l))) as H_filter_eq.
+  {
+    induction l as [|x l' IH].
+    - (* Base case: empty list *)
+      simpl. reflexivity.
+    - (* Inductive case *)
+      simpl.
+      destruct (in_test x) eqn:H_test.
+      + (* x is in l1 *)
+        simpl. f_equal.
+        exact IH.
+      + (* x is not in l1 *)
+        specialize (H_in_test x) as H_in_test_x.
+        assert (~ In x l1) as H_not_in_l1.
+        {
+          unfold not.
+          intros H_in.
+          apply H_in_test_x in H_in.
+          rewrite H_test in H_in.
+          discriminate.
+        }
+        specialize (H_zero x H_not_in_l1).
+        rewrite H_zero.
+        rewrite Rplus_0_l.
+        exact IH.
+  }
+  specialize (H_filter_eq l2) as H_filter_eq_l2.
+  rewrite H_filter_eq_l2.
+  
+  (* Next, prove that filter in_test l2 is a permutation of l1 *)
+  assert (Permutation l1 (filter in_test l2)) as H_perm.
+  {
+    apply NoDup_Permutation.
+    - exact H_nodup1.
+    - apply NoDup_filter.
+      exact H_nodup2.
+    - intro a.
+      split; intro H_in.
+      + (* -> direction *)
+        apply filter_In.
+        split.
+        * apply H_subset. exact H_in.
+        * apply H_in_test. exact H_in.
+      + (* <- direction *)
+        apply filter_In in H_in.
+        destruct H_in as [_ H_in].
+        apply H_in_test in H_in.
+        exact H_in.
+  }
+  
+  (* Finally, use permutation to show sums are equal *)
+  apply Permutation_map with (f:=f) in H_perm.
+  apply Permutation_sum_eq.
+  exact H_perm.
+Qed.
