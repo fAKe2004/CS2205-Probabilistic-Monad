@@ -82,7 +82,7 @@ Admitted. (** Level 2 *)
 Admitted. (** Level 2 *)
 ```
 
-25-27 fAKe
+25-27 fAKe (Done)
 
 ```coq
 #[export] Instance ProbMonad_bind_congr_event (A: Type):
@@ -100,6 +100,54 @@ Admitted. (** Level 2 *)
   Proper (iff ==> ProbMonad.equiv_event) ret.
 Admitted. (** Level 2 *)
 ```
+
+---
+
+### level 3 partition
+
+28-29: Zicong Zhang
+```coq
+Lemma bind_assoc:
+  forall (A B C: Type)
+         (f: ProbMonad.M A)
+         (g: A -> ProbMonad.M B)
+         (h: B -> ProbMonad.M C),
+  bind (bind f g) h ==
+  bind f (fun a => bind (g a) h).
+
+Lemma bind_assoc_event:
+  forall (A B: Type)
+         (f: ProbMonad.M A)
+         (g: A -> ProbMonad.M B)
+         (h: B -> ProbMonad.M Prop),
+  ProbMonad.equiv_event
+    (bind (bind f g) h)
+    (bind f (fun a => bind (g a) h)).
+
+```
+
+30-32: fAKe (Done)
+```coq
+Lemma bind_ret_l:
+  forall (A B: Type)
+         (a: A)
+         (f: A -> ProbMonad.M B),
+  bind (ret a) f == f a.
+
+Lemma bind_ret_l_event:
+  forall (A: Type)
+         (a: A)
+         (f: A -> ProbMonad.M Prop),
+  ProbMonad.equiv_event (bind (ret a) f) (f a).
+
+Lemma bind_ret_r:
+  forall (A: Type)
+         (f: ProbMonad.M A),
+  bind f ret == f.
+
+```
+
+
 
 # Auxiliary Theorem
 
@@ -251,7 +299,7 @@ Lemma sum_distr_singleton_preserve:
     -> ProbDistr.equiv d ds.
 ```
 
-### 14. forall_exists_Forall2_exists:
+#### 14. forall_exists_Forall2_exists:
   construct a Forall2 list from "forall a, exists b, rel a b"
 
   To reuse this, you might need to move this lemma to front part of the code as its defined at tail for bind_ret_r.
@@ -264,7 +312,7 @@ Theorem forall_exists_Forall2_exists:
 
   Note: a similar but conditioned version may be helpful, but I don't need it, so not proven.
 
-### 15. is_det_prob_01
+#### 15. is_det_prob_01
 
 if ProbDistr.is_det a d, then:
     $d.(\text{prob})\ b = \begin{cases}1 & a=b \\ 0 & a \neq b \end{cases}$
@@ -275,7 +323,7 @@ Theorem is_det_prob_01:
     ((a = b -> d.(prob) b = 1%R) /\ (a <> b -> d.(prob) b = 0%R)).
 ```
 
-### 16. ProbDistr_sum_distr_exists
+#### 16. ProbDistr_sum_distr_exists
   For any list of weighted distributions, there exists a summed distribution.
 ```coq
 Theorem ProbDistr_sum_distr_exists:
@@ -283,7 +331,7 @@ Theorem ProbDistr_sum_distr_exists:
     exists d, ProbDistr.sum_distr l d.
 ```
 
-### 17. ProbDistr_sum_distr_legal
+#### 17. ProbDistr_sum_distr_legal
   if the Forall (r, d) in l : r >= 0 /\ legal d, 
   then ds: sum_distr l ds, ds is legal.
 
@@ -295,6 +343,73 @@ Theorem ProbDistr_sum_distr_legal:
     ProbDistr.legal ds.
 ```
 
+#### 18. ProbDistr_equiv_legal_congr
+  if d1 ~=~ d2 -> legal d1 -> legal d2
+```coq
+Theorem ProbDistr_equiv_legal_congr:
+  forall {A: Type} (d1 d2: Distr A),
+    ProbDistr.equiv d1 d2 -> ProbDistr.legal d1 -> ProbDistr.legal d2.
+```
+
+#### 19. is_det_exists
+  for any element a: A, there exists a deterministic distribution d s.t. is_det a d.
+```coq
+
+Theorem is_det_exists:
+  forall {A: Type} (a: A),
+    exists d: Distr A, ProbDistr.is_det a d.
+```
+
+#### 20. ProbDistr_not_in_pset_prob_0:
+  if d is legal, then ~In a d.(pset) -> d.(prob) a = 0.
+```coq
+Theorem ProbDistr_not_in_pset_prob_0:
+  forall {A: Type} (d : Distr A) (a : A),
+    ProbDistr.legal d->
+   ~In a d.(pset) ->  d.(prob) a = 0%R.
+```
+
+#### 21. ProbDistr_sum_distr_permutation_equiv
+  Permutation L1 L1' -> sum_distr over L1 L1' is equivalent (assume legality)
+```coq
+Theorem ProbDistr_sum_distr_permutation_equiv:
+  forall {B: Type} (L1 L1' : list (R * Distr B)) (ds1 ds1' : Distr B),
+  Permutation L1 L1'
+  -> ProbDistr.sum_distr L1 ds1
+  -> ProbDistr.sum_distr L1' ds1'
+  -> (forall a : B,
+  (ds1.(prob) a > 0)%R ->
+  In a ds1.(pset)) (* pset valid *)
+  -> (forall a : B,
+  (ds1'.(prob) a > 0)%R ->
+  In a ds1'.(pset)) (* pset valid *)
+  -> ProbDistr.equiv ds1 ds1'.
+```
+
+#### 22. ProbDistr_sum_distr_equiv_equiv
+  Forall2 (fun '(r1, d1) '(r2, d2) => (r1 = r2)%R /\ ProbDistr.equiv d1 d2) L1 L2
+    -> sum_distr L1 ~=~ sum_distr L2
+```coq
+Theorem ProbDistr_sum_distr_equiv_equiv:
+  forall {B: Type} (L1 L2 : list (R * Distr B)) (ds1 ds2 : Distr B),
+  Forall2 (fun '(r1, d1) '(r2, d2) => (r1 = r2)%R /\ ProbDistr.equiv d1 d2) L1 L2
+  -> ProbDistr.sum_distr L1 ds1
+  -> ProbDistr.sum_distr L2 ds2
+  -> ProbDistr.equiv ds1 ds2.
+```
+
+#### 23. ProbDistr_sum_distr_legal_precondition_helper
+    To convert common condition in bind f g, into precondition for sum_distr_legal
+```coq
+Theorem ProbDistr_sum_distr_legal_precondition_helper:
+  forall {A B: Type} (f: Distr A -> Prop) (g: A -> Distr B -> Prop)  (df : Distr A) (l : list (R * Distr B)),
+  Legal f ->
+  (forall a : A, Legal (g a)) ->
+  df ∈ f ->
+  Forall2 (fun (a : A) '(r, d) => r = df.(prob) a /\ d ∈ g a) df.(pset) l ->
+  Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l /\
+  sum (map (fun '(r, d) => r) l) = 1%R.
+```
 ---
 
 # Note:
@@ -326,3 +441,70 @@ Theorem ProbDistr_sum_distr_legal:
   - 听说 Always_consq 有点问题，暂停。
 
   - 把 sum_distr_legal 的要求暂时弱化成了 sum_pset_no_dup.
+
+---
+
+## Correctness Fix Summary:
+
+#### 1. ProbDistr.compute_pr:
+```coq
+Definition compute_pr (d: Distr Prop) (r: R): Prop :=
+  exists (l: list Prop),
+    NoDup l /\
+    (forall P, In P l <-> In P d.(pset) /\ P) /\
+    sum_prob l d.(prob) = r.
+```
+
+add NoDup requirement to l
+
+#### 2. ProbDistr.imply_event/equiv_event:
+```coq
+Definition imply_event (d1 d2: Distr Prop): Prop :=
+  exists r1 r2,
+    compute_pr d1 r1 /\
+    compute_pr d2 r2 /\
+    (r1 <= r2)%R.
+Definition equiv_event (d1 d2: Distr Prop): Prop :=
+  exists r1 r2,
+    compute_pr d1 r1 /\
+    compute_pr d2 r2 /\
+    r1 = r2.
+```
+redefined solely with compute_pr
+
+#### 3. ProbMonad.Legal
+
+```coq
+Record Legal {A: Type} (f: Distr A -> Prop): Prop := {
+  (* exists a unique legal Distr d in f *)
+  Legal_exists: exists d, d ∈ f;
+  Legal_legal: forall d, d ∈ f -> ProbDistr.legal d;
+  Legal_unique: forall d1 d2, d1 ∈ f -> d2 ∈ f -> ProbDistr.equiv d1 d2;
+  (* congruence under ProbDistr.equiv*)
+  Legal_congr: forall d1 d2, ProbDistr.equiv d1 d2 -> d1 ∈ f -> d2 ∈ f;
+}.
+```
+
+add Legal_congr requirement. 
+(this is a natural and reasonable fix, otherwise bind_ret_l would be unprovable. )
+
+#### 4. ProbDistr.sum_distr
+
+```coq
+Record sum_distr {A: Type}
+                 (ds: list (R * Distr A))
+                 (d0: Distr A): Prop :=
+{
+  sum_pset_no_dup: (* adds on to enforce d0.(pset)'s validity*)
+    NoDup d0.(pset);
+  sum_pset_valid:
+    forall a, In a d0.(pset) <->
+              In a (concat (map (fun '(r, d) => d.(pset)) ds));
+  sum_prob_valid:
+    forall a, d0.(prob) a =
+              sum (map (fun '(r, d) => r * d.(prob) a) ds)%R;
+}.
+```
+
+add NoDup requirement to resulting distribution's pset. (necessiated by a bunch of bind'
+s legality related statements)

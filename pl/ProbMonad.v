@@ -600,8 +600,9 @@ Proof.
   - rewrite IHHperm1. assumption.
 Qed.
 
+(* updated: accept general type *)
 Lemma Permutation_sum_map_eq:
-  forall (l1 l2: list Prop) (f1 f2: Prop -> R),
+  forall {A: Type} (l1 l2: list A) (f1 f2: A -> R),
     Permutation l1 l2 ->
     (forall x, f1 x = f2 x) ->
     sum (map f1 l1) = sum (map f2 l2).
@@ -695,19 +696,32 @@ Theorem ProbDistr_equiv_equiv_event:
 
 
 (*
-  unregistered
   Name: ProbDistr_equiv_legal_congr
   Property: Auxiliary Theorem
   Description:
     if d1 ~=~ d2 -> legal d1 -> legal d2
-
-  fAKe: I will prove this soon. should be easy.
 *)
 Theorem ProbDistr_equiv_legal_congr:
   forall {A: Type} (d1 d2: Distr A),
     ProbDistr.equiv d1 d2 -> ProbDistr.legal d1 -> ProbDistr.legal d2.
 Proof.
-Admitted.
+  intros ? ? ? Hequiv Hlegal1.
+  destruct Hequiv as [Hprob Hpset].
+  destruct Hlegal1 as [HNoDup Hnonneg Hpset_valid Hprob_1].
+  split.
+  - apply (Permutation_NoDup Hpset HNoDup).
+  - intro a.
+    rewrite <-(Hprob a).
+    apply (Hnonneg a).
+  - intros a Hprob_g0.
+    specialize (Hpset_valid a).
+    rewrite <-(Hprob a) in Hprob_g0.
+    apply Hpset_valid in Hprob_g0 as H_in.
+    specialize (Permutation_in) as Hfinal.
+    apply (Hfinal A d1.(pset) d2.(pset) a); assumption.
+  - unfold sum_prob in *.
+    rewrite <-(Permutation_sum_map_eq d1.(pset) d2.(pset) d1.(prob) d2.(prob)); assumption.
+Qed.
 
 (*
   Name: 
@@ -1026,8 +1040,6 @@ Qed.
 
 
 (*
-  unregistered
-
   Name is_det_exists
   Property: Auxiliary Theorem
   Description:
@@ -1097,7 +1109,6 @@ Proof.
 Qed.
 
 (*
-  unregistered
   Name: ProbDistr_not_in_pset_prob_0:
   Property: Auxiliary Theorem
   Description:
@@ -1630,7 +1641,6 @@ Qed.
 
 
 (*
-  unregistered
   Name: ProbDistr_sum_distr_permutation_equiv
   Property: Auxiliary Theorem
   Description:
@@ -1700,14 +1710,11 @@ Proof.
 Qed.
 
 (*
-  unregistered
   Name: ProbDistr_sum_distr_equiv_equiv
   Property: Auxiliary Theorem
   Description:
     Forall2 (fun '(r1, d1) '(r2, d2) => (r1 = r2)%R /\ ProbDistr.equiv d1 d2) L1 L2
     -> sum_distr L1 ~=~ sum_distr L2
-  
-  fAKe: I will prove this soon. should be easy.
 *)
 Theorem ProbDistr_sum_distr_equiv_equiv:
   forall {B: Type} (L1 L2 : list (R * Distr B)) (ds1 ds2 : Distr B),
@@ -1715,7 +1722,47 @@ Theorem ProbDistr_sum_distr_equiv_equiv:
   -> ProbDistr.sum_distr L1 ds1
   -> ProbDistr.sum_distr L2 ds2
   -> ProbDistr.equiv ds1 ds2.
-Admitted.
+Proof.
+  intros B L1 L2 ds1 ds2 HForall2 Hsum1 Hsum2.
+  destruct Hsum1 as [Hnodup1 Hpset1 Hprob1].
+  destruct Hsum2 as [Hnodup2 Hpset2 Hprob2].
+  split.
+  - intro a.
+    specialize (Hprob1 a).
+    specialize (Hprob2 a).
+    rewrite Hprob1.
+    rewrite Hprob2.
+    clear dependent ds1.
+    clear dependent ds2.
+    induction HForall2 as [| x y L1t L2t Hhead Htail IH]; simpl.
+    + reflexivity.
+    + rewrite IH.
+    destruct x as [rx dx].
+    destruct y as [ry dy].
+    destruct Hhead as [Hr Hd].
+    destruct Hd as [Hprob_eq _].
+    rewrite (Hprob_eq a).
+    rewrite Hr.
+    reflexivity.
+  - apply (NoDup_Permutation Hnodup1 Hnodup2).
+    intro a.
+    clear Hnodup1 Hnodup2 Hprob1 Hprob2.
+    rewrite (Hpset1 a); clear Hpset1.
+    rewrite (Hpset2 a); clear Hpset2.
+    assert (Permutation (concat (map (fun '(_, d) => d.(pset)) L1)) (concat (map (fun '(_, d) => d.(pset)) L2))) as Hperm. {
+      clear a ds1 ds2.
+      induction HForall2 as [| [rx dx] [ry dy] L1t L2t [Hr Hd] Htail IH]; simpl.
+      - constructor.
+      - apply Permutation_app.
+        + destruct Hd; tauto.
+        + exact IH.
+    }
+    split; intro Hin.
+    + apply Permutation_in with (l := concat (map (fun '(_, d) => d.(pset)) L1)); assumption.
+    + symmetry in Hperm.
+      apply Permutation_in with (l := concat (map (fun '(_, d) => d.(pset)) L2)); assumption.
+Qed.
+
 
 
 
@@ -1866,7 +1913,6 @@ Qed.
 
 
 (*
-  unregistered
   Name: ProbDistr_sum_distr_legal_precondition_helper
   Property: Auxiliary Theorem
   Description:
