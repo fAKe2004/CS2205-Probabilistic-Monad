@@ -2,6 +2,82 @@
 
 Project repo for CS2205 ProbMonad
 
+
+---
+# Result Summary
+
+> Main File : pl/ProbMonad.v
+## Correctness Fix Summary:
+
+#### 1. ProbDistr.compute_pr:
+```coq
+Definition compute_pr (d: Distr Prop) (r: R): Prop :=
+  exists (l: list Prop),
+    NoDup l /\
+    (forall P, In P l <-> In P d.(pset) /\ P) /\
+    sum_prob l d.(prob) = r.
+```
+
+add NoDup requirement to l
+
+#### 2. ProbDistr.imply_event/equiv_event:
+```coq
+Definition imply_event (d1 d2: Distr Prop): Prop :=
+  exists r1 r2,
+    compute_pr d1 r1 /\
+    compute_pr d2 r2 /\
+    (r1 <= r2)%R.
+Definition equiv_event (d1 d2: Distr Prop): Prop :=
+  exists r1 r2,
+    compute_pr d1 r1 /\
+    compute_pr d2 r2 /\
+    r1 = r2.
+```
+redefined solely with compute_pr
+
+#### 3. ProbMonad.Legal
+
+```coq
+Record Legal {A: Type} (f: Distr A -> Prop): Prop := {
+  (* exists a unique legal Distr d in f *)
+  Legal_exists: exists d, d ∈ f;
+  Legal_legal: forall d, d ∈ f -> ProbDistr.legal d;
+  Legal_unique: forall d1 d2, d1 ∈ f -> d2 ∈ f -> ProbDistr.equiv d1 d2;
+  (* congruence under ProbDistr.equiv*)
+  Legal_congr: forall d1 d2, ProbDistr.equiv d1 d2 -> d1 ∈ f -> d2 ∈ f;
+}.
+```
+
+add Legal_congr requirement. 
+(this is a natural and reasonable fix, otherwise bind_ret_l would be unprovable. )
+
+#### 4. ProbDistr.sum_distr
+
+```coq
+Record sum_distr {A: Type}
+                 (ds: list (R * Distr A))
+                 (d0: Distr A): Prop :=
+{
+  sum_pset_no_dup: (* adds on to enforce d0.(pset)'s validity*)
+    NoDup d0.(pset);
+  sum_pset_valid:
+    forall a, In a d0.(pset) <->
+              In a (concat (map (fun '(r, d) => d.(pset)) ds));
+  sum_prob_valid:
+    forall a, d0.(prob) a =
+              sum (map (fun '(r, d) => r * d.(prob) a) ds)%R;
+}.
+```
+
+add NoDup requirement to resulting distribution's pset. (necessiated by a bunch of bind'
+s legality related statements)
+
+
+---
+
+
+---
+
 ### level 1 partition
 
 1-4 fAKe (Done)
@@ -443,68 +519,3 @@ Theorem ProbDistr_sum_distr_legal_precondition_helper:
   - 把 sum_distr_legal 的要求暂时弱化成了 sum_pset_no_dup.
 
 ---
-
-## Correctness Fix Summary:
-
-#### 1. ProbDistr.compute_pr:
-```coq
-Definition compute_pr (d: Distr Prop) (r: R): Prop :=
-  exists (l: list Prop),
-    NoDup l /\
-    (forall P, In P l <-> In P d.(pset) /\ P) /\
-    sum_prob l d.(prob) = r.
-```
-
-add NoDup requirement to l
-
-#### 2. ProbDistr.imply_event/equiv_event:
-```coq
-Definition imply_event (d1 d2: Distr Prop): Prop :=
-  exists r1 r2,
-    compute_pr d1 r1 /\
-    compute_pr d2 r2 /\
-    (r1 <= r2)%R.
-Definition equiv_event (d1 d2: Distr Prop): Prop :=
-  exists r1 r2,
-    compute_pr d1 r1 /\
-    compute_pr d2 r2 /\
-    r1 = r2.
-```
-redefined solely with compute_pr
-
-#### 3. ProbMonad.Legal
-
-```coq
-Record Legal {A: Type} (f: Distr A -> Prop): Prop := {
-  (* exists a unique legal Distr d in f *)
-  Legal_exists: exists d, d ∈ f;
-  Legal_legal: forall d, d ∈ f -> ProbDistr.legal d;
-  Legal_unique: forall d1 d2, d1 ∈ f -> d2 ∈ f -> ProbDistr.equiv d1 d2;
-  (* congruence under ProbDistr.equiv*)
-  Legal_congr: forall d1 d2, ProbDistr.equiv d1 d2 -> d1 ∈ f -> d2 ∈ f;
-}.
-```
-
-add Legal_congr requirement. 
-(this is a natural and reasonable fix, otherwise bind_ret_l would be unprovable. )
-
-#### 4. ProbDistr.sum_distr
-
-```coq
-Record sum_distr {A: Type}
-                 (ds: list (R * Distr A))
-                 (d0: Distr A): Prop :=
-{
-  sum_pset_no_dup: (* adds on to enforce d0.(pset)'s validity*)
-    NoDup d0.(pset);
-  sum_pset_valid:
-    forall a, In a d0.(pset) <->
-              In a (concat (map (fun '(r, d) => d.(pset)) ds));
-  sum_prob_valid:
-    forall a, d0.(prob) a =
-              sum (map (fun '(r, d) => r * d.(prob) a) ds)%R;
-}.
-```
-
-add NoDup requirement to resulting distribution's pset. (necessiated by a bunch of bind'
-s legality related statements)
