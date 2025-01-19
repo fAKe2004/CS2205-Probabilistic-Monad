@@ -3665,6 +3665,31 @@ Lemma bind_congr_distr_aux:
 Admitted.
 
 (*
+  Name: forall2_H
+  Property: Auxiliary Theorem
+  Description:
+    Forall2 P l1 l2 -> (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2
+*)
+Lemma forall2_H:
+  forall {A B: Type} (l1: list A) (l2: list B) (P Q: A -> B -> Prop) ,
+    Forall2 P l1 l2 ->
+    (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2.
+Proof.
+  intros.
+  induction H.
+  - constructor.
+  - constructor; auto.
+  + apply H0; auto.
+  ++ left; auto.
+  ++ left; auto.
+  + apply IHForall2.
+    intros.
+    apply H0; auto.
+    right; auto.
+    right; auto.
+Qed.
+
+(*
   Name: bind_congr
   Property: Auxiliary Theorem
   Description:
@@ -3814,30 +3839,6 @@ Proof.
   - tauto.
 Qed.
 
-(*
-  Name: forall2_H
-  Property: Auxiliary Theorem
-  Description:
-    Forall2 P l1 l2 -> (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2
-*)
-Lemma forall2_H:
-  forall {A B: Type} (l1: list A) (l2: list B) (P Q: A -> B -> Prop) ,
-    Forall2 P l1 l2 ->
-    (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2.
-Proof.
-  intros.
-  induction H.
-  - constructor.
-  - constructor; auto.
-  + apply H0; auto.
-  ++ left; auto.
-  ++ left; auto.
-  + apply IHForall2.
-    intros.
-    apply H0; auto.
-    right; auto.
-    right; auto.
-Qed.
 
 (*
   Name: sum_distr_singleton_preserve:
