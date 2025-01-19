@@ -7,6 +7,7 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import Coq.Logic.Classical_Prop.
 Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Logic.FunctionalExtensionality.
 Import SetsNotation.
 Local Open Scope sets.
 Local Open Scope list.
@@ -2462,35 +2463,16 @@ Proof.
     exact H2.
 Qed.
 
-Theorem Always_bind_ret {A B: Type}:
+(** The Lemma or Theorem in level3 is helpful to prove Theorem Always_bind_ret,
+so the proof of it is right after the proof of Lemma bind_ret_l_event **)
+
+(** Theorem Always_bind_ret {A B: Type}:
   forall (c2: A -> ProbMonad.M B)
          (f: A -> B)
          (P: B -> Prop),
     (forall a, c2 a = ret (f a)) ->
     (forall c1, Always c1 (fun a => P (f a)) <-> Always (a <- c1;; c2 a) P).
-Proof.
-  intros.
-  split.
-  + intros.
-    unfold Always in *.
-    unfold Hoare in *.
-    intros.
-    remember (res <- c1;; c2 res) as c.
-    pose proof c.(legal) as H_legal.
-    destruct H_legal as [H_legal1 _ _ _].
-    destruct H_legal1 as [d1 H_legal1].
-    apply compute_pr_sum_Prop with (c:=c) (f:=d1) in H1.
-    2:{exact H_legal1. }
-    - admit.
-  + intros.
-    unfold Always in *.
-    unfold Hoare in *.
-    intros.
-    remember (res <- c1;; c2 res) as c.
-    pose proof c.(legal) as H_legal.
-    destruct H_legal as [H_legal1 _ _ _].
-    destruct H_legal1 as [d1 H_legal1].
-Admitted. (** Level 1 *)
+ **)
 
 Theorem compute_pr_exists: forall f, exists r, ProbMonad.compute_pr f r.
 Proof.
@@ -3682,6 +3664,34 @@ Lemma bind_congr_distr_aux:
   ProbDistr.sum_distr lbc dstr_c.
 Admitted.
 
+(*
+  Name: bind_congr
+  Property: Auxiliary Theorem
+  Description:
+    If two distributions are equivalent and mapped by the same function g,
+    then their bind results are also equivalent.
+*)
+Lemma bind_congr:
+  forall (A B: Type)(c: ProbMonad.M A)(f1 f2: A -> ProbMonad.M B),
+    (forall a, f1 a == f2 a) ->
+    forall d, d ∈ (bind c f1).(distr) -> d ∈ (bind c f2).(distr).
+Proof.
+  intros.
+  unfold bind in *; simpl in *.
+  unfold ProbMonad.__bind in *; simpl in *.
+  unfold ProbMonad.equiv in *; sets_unfold.
+  destruct H0 as [d' [l [Hd' [Hl Hsum_distr]]]].
+  exists d', l.
+  split; auto. split; auto.
+  eapply forall2_H; eauto.
+  intros.
+  destruct b.
+  split.
+  - tauto.
+  - destruct H2.
+    apply H; auto.
+Qed.
+
 Lemma bind_assoc:
   forall (A B C: Type)
          (f: ProbMonad.M A)
@@ -3805,6 +3815,31 @@ Proof.
 Qed.
 
 (*
+  Name: forall2_H
+  Property: Auxiliary Theorem
+  Description:
+    Forall2 P l1 l2 -> (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2
+*)
+Lemma forall2_H:
+  forall {A B: Type} (l1: list A) (l2: list B) (P Q: A -> B -> Prop) ,
+    Forall2 P l1 l2 ->
+    (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 Q l1 l2.
+Proof.
+  intros.
+  induction H.
+  - constructor.
+  - constructor; auto.
+  + apply H0; auto.
+  ++ left; auto.
+  ++ left; auto.
+  + apply IHForall2.
+    intros.
+    apply H0; auto.
+    right; auto.
+    right; auto.
+Qed.
+
+(*
   Name: sum_distr_singleton_preserve:
   Property: Auxiliary Theorem
   Description:
@@ -3831,7 +3866,29 @@ Proof.
     symmetry in sum_pset_valid.
     apply NoDup_Permutation; [exact H0 | exact H1 | exact sum_pset_valid].
 Qed.
-    
+
+(*
+  Name:bind_equiv_congr
+  Property: Auxiliary Theorem
+  Description:
+    If two functions are equivalent, then their bind results are also equivalent.
+*)
+
+Lemma bind_equiv_congr:
+  forall (A B: Type) (c: ProbMonad.M A) (f1 f2: A -> ProbMonad.M B),
+    (forall a, f1 a == f2 a) ->
+    bind c f1 == bind c f2.
+Proof.
+  intros.
+  unfold ProbMonad.equiv; sets_unfold.
+  intros.
+  split.
+  - apply bind_congr; auto.
+  - apply bind_congr.
+    intros.
+    symmetry.
+    apply H.
+Qed.
 
 Lemma bind_ret_l:
   forall (A B: Type)
@@ -3919,7 +3976,177 @@ Proof.
 Qed.
 (* Admitted. * Level 3 *)
 
-    
+Theorem Always_bind_ret {A B: Type}:
+  forall (c2: A -> ProbMonad.M B)
+         (f: A -> B)
+         (P: B -> Prop),
+    (forall a, c2 a = ret (f a)) ->
+    (forall c1, Always c1 (fun a => P (f a)) <-> Always (a <- c1;; c2 a) P).
+Proof.
+  intros.
+  unfold Always.
+  unfold Hoare.
+  sets_unfold.
+  split.
+  + intros.
+    specialize (H0 a).
+    unfold ProbMonad.compute_pr in *.
+    destruct H1 as [d1 [Hd1]].
+    sets_unfold in Hd1.
+    apply H0.
+    exists d1.
+    split.
+    2:{ exact H1. }
+    - clear H1.
+    assert (c2 = fun b => ret (f b)) as Hc. {
+      extensionality b.
+      apply H.
+    }
+    subst c2.
+    clear H0 H.
+    remember (ProbMonad.bind (ProbMonad.bind c1 (fun a : A => ProbMonad.ret (f a))) (fun res : B => ProbMonad.ret (P res))) as b1.
+    remember (ProbMonad.bind c1 (fun res: A => ProbMonad.ret (P (f res)))) as b2.
+    assert (d1 ∈ b1.(distr)) as Hd1'.
+    { 
+      subst b2.
+      subst b1.
+      sets_unfold.
+      unfold bind, ret in *. simpl in *.
+      tauto.
+    }
+    clear Hd1.
+    remember (res <- c1 ;; ret (P (f res))) as t2.
+    assert (b2 = t2) as Hb2. {
+      subst b2.
+      subst t2.
+      unfold bind, ret in *.
+      simpl in *.
+      tauto.
+    }
+    rewrite <- Hb2.
+    clear Hb2 Heqt2 t2.
+    remember (ProbMonad.bind c1 (fun a: A => ProbMonad.bind (ProbMonad.ret (f a)) (fun res: B => ProbMonad.ret (P res)))) as b3. 
+    assert(b1 == b3) as Hb1. {
+      subst b3.
+      subst b1.
+      apply bind_assoc.
+    }
+    assert (d1 ∈ b3.(distr)) as Hd1''. {
+      unfold ProbMonad.equiv in Hb1.
+      apply Hb1 in Hd1'.
+      exact Hd1'.
+    }
+    remember (fun res: A => ProbMonad.ret (P (f res))) as f1.
+    clear Hb1 Hd1'.
+    remember (fun a: A => ProbMonad.bind (ProbMonad.ret (f a)) (fun res: B => ProbMonad.ret (P res))) as f2.
+    assert (forall x, f1 x == f2 x) as Hf. {
+      subst f1.
+      subst f2.
+      intros.
+      pose proof bind_ret_l _ _ (f x) (fun res : B => ProbMonad.ret (P res)).
+      rewrite H.
+      reflexivity.
+    }
+    specialize (bind_equiv_congr _ _ c1 f1 f2 Hf) as H_congr.
+    assert (b2 == b3) as Hd1'''. {
+      subst b2.
+      subst b3.
+      apply H_congr.
+    }
+    clear H_congr Hf.
+    apply Hd1'''.
+    exact Hd1''.
+  + intros.
+  specialize (H0 a).
+  unfold ProbMonad.compute_pr in *.
+  destruct H1 as [d1 [Hd1]].
+  sets_unfold in Hd1.
+  apply H0.
+  exists d1.
+  split.
+  2:{ exact H1. }
+  - clear H1.
+  assert (c2 = fun b => ret (f b)) as Hc. {
+    extensionality b.
+    apply H.
+  }
+  subst c2.
+  clear H0 H.
+  remember (ProbMonad.bind (ProbMonad.bind c1 (fun a : A => ProbMonad.ret (f a))) (fun res : B => ProbMonad.ret (P res))) as b1.
+  remember (ProbMonad.bind c1 (fun res: A => ProbMonad.ret (P (f res)))) as b2.
+  assert (d1 ∈ b2.(distr)) as Hd1'.
+  { 
+    subst b2.
+    subst b1.
+    sets_unfold.
+    unfold bind, ret in *. simpl in *.
+    tauto.
+  }
+  clear Hd1.
+  remember (res <- c1 ;; ret (P (f res))) as t2.
+  assert (b2 = t2) as Hb2. {
+    subst b2.
+    subst t2.
+    unfold bind, ret in *.
+    simpl in *.
+    tauto.
+  }
+  assert (d1 ∈ t2.(distr)) as Hd1''. {
+    subst t2.
+    rewrite <- Hb2.
+    exact Hd1'.
+  }
+  clear Hb2 Hd1'.
+  remember (res <- (a0 <- c1;; ret (f a0));; ret (P res)) as t3.
+  assert (b1 == t3) as Hb2. {
+    subst b1.
+    subst t3.
+    unfold bind, ret in *.
+    simpl in *.
+    reflexivity.
+  }
+  apply Hb2.
+  remember (ProbMonad.bind c1 (fun a: A => ProbMonad.bind (ProbMonad.ret (f a)) (fun res: B => ProbMonad.ret (P res)))).
+  assert (b1 == m) as Hm. {
+    subst m.
+    subst b1.
+    apply bind_assoc.
+  }
+  apply Hm.
+  remember (fun res: A => ProbMonad.ret (P (f res))) as f1.
+  remember (fun a: A => ProbMonad.bind (ProbMonad.ret (f a)) (fun res: B => ProbMonad.ret (P res))) as f2.
+  assert (forall x, f1 x == f2 x) as Hf. {
+    subst f1.
+    subst f2.
+    intros.
+    pose proof bind_ret_l _ _ (f x) (fun res : B => ProbMonad.ret (P res)).
+    rewrite H.
+    reflexivity.
+  }
+  specialize (bind_equiv_congr _ _ c1 f1 f2 Hf) as H_congr.
+  assert (b2 == m) as Hd1'''. {
+    subst b2.
+    subst m.
+    apply H_congr.
+  }
+  clear H_congr Hf.
+  apply Hm.
+  assert (t2 == b2) as Hb3. {
+    subst t2.
+    subst b2.
+    unfold bind, ret in *.
+    simpl in *.
+    subst f1.
+    reflexivity.
+  }
+  assert (d1 ∈ b2.(distr)) as Hd1'''''. {
+    apply Hb3.
+    exact Hd1''.
+  }
+  apply Hm.
+  apply Hd1'''.
+  exact Hd1'''''.
+Qed.    
 
 
 (* 
@@ -4243,3 +4470,4 @@ Proof.
     tauto.
 Qed.
 (* Admitted. * Level 3 *)
+
