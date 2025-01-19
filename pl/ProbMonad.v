@@ -2022,7 +2022,7 @@ Proof.
 - (* Legal_legal*)
   (*
     Idea:
-    use ProbDistr_sum_distr_Legal.
+    use ProbDistr_sum_distr_legal.
   *)
   exact HLegal_legal.
   
@@ -2951,7 +2951,6 @@ Proof.
     destruct H_sum1 as [H_nodup1 [H_in1 H_sum1]].
     destruct H_sum2 as [H_nodup2 [H_in2 H_sum2]].
 
-
 Admitted.
 
 (*
@@ -3022,6 +3021,54 @@ Proof.
       split; [right; exact Hb | exact HR].
 Qed.
 
+Theorem ProbDistr_sum_distr_legal_precondition_helper_MonadVer:
+  forall {A B: Type} (f : ProbMonad.M A) (g: A -> ProbMonad.M B) (df : Distr A) (l : list (R * Distr B)),
+  df ∈ f.(distr) ->
+  Forall2 (fun (a : A) '(r, d) => r = df.(prob) a /\ d ∈ (g a).(distr)) df.(pset) l ->
+  Forall (fun '(r, d) => (r >= 0)%R /\ ProbDistr.legal d) l /\
+  sum (map (fun '(r, d) => r) l) = 1%R.
+Proof.
+  intros ? ? ? ? ? ? Hdf Hl.
+  specialize f.(legal) as Hf.
+  remember (fun x => (g x).(legal)) as Hg.
+  split.
+  * induction Hl as [| x y lx_tail ly_tail].
+    - constructor.
+    - destruct y as [r d].
+      destruct H as [Hr Hd].
+      constructor.
+      + destruct Hf as [_ Hdf_legal _ _].
+        specialize (Hdf_legal df Hdf).
+        pose proof (ProbDistr.legal_nonneg df Hdf_legal) as H_ge0.
+        specialize (H_ge0 x).
+        subst r.
+        
+        destruct (Hg x) as [_ Hd_legal _ _].
+        specialize (Hd_legal d Hd).
+        tauto.
+      + exact IHHl.
+  * assert ( (* summation r = 1, prerequisite for ProbDistr_sum_distr_legal *)
+      sum (map (fun '(r, d) => r) l) = 1%R
+    ) as Hsum_r. {
+      assert (sum (map (fun '(r, d) => r) l) = sum (map (df.(prob)) df.(pset))) as H_aux.
+      {
+        induction Hl as [| x [r d] lx_tail ly_tail [Hr Hd] Htail]; simpl.
+        - reflexivity.
+        - rewrite IHHtail.
+          rewrite <-Hr.
+          reflexivity.    
+      }
+      rewrite H_aux.
+      destruct Hf as [_ Hdf_legal _ _].
+      specialize (Hdf_legal df Hdf).
+      destruct Hdf_legal as [_ _ _ Hsum_prob1].
+      unfold sum_prob in Hsum_prob1.
+      exact Hsum_prob1.
+    }
+    apply Hsum_r.
+Qed.
+
+
 (*
   Name: bind_congr_aux
   Property: Auxiliary Theorem
@@ -3029,130 +3076,134 @@ Qed.
     If two distributions are equivalent and mapped by the same function g,
     then their sum_distr results are also equivalent.
 *)
-Lemma bind_congr_aux:
-  forall (A: Type) (dx dy: Distr A) (g: A -> ProbMonad.M Prop) 
-         (lx ly: list (R * Distr Prop)) (dsx dsy: Distr Prop),
-    ProbDistr.equiv dx dy ->
+Lemma bind_congr_aux: (* change prop to general type B*)
+  forall {A B : Type} (dx dy: Distr A) (f : ProbMonad.M A) (g: A -> ProbMonad.M B) 
+         (lx ly: list (R * Distr B)) (dsx dsy: Distr B),
+    dx ∈ f.(distr) ->
+    dy ∈ f.(distr) ->
     Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (g a).(distr)) dx.(pset) lx ->
     Forall2 (fun a '(r, d) => r = dy.(prob) a /\ d ∈ (g a).(distr)) dy.(pset) ly ->
     ProbDistr.sum_distr lx dsx ->
     ProbDistr.sum_distr ly dsy ->
     ProbDistr.equiv dsx dsy.
 Proof.
-  intros A dx dy g lx ly dsx dsy Hequiv Hlx Hly Hsumx Hsumy.
-  destruct Hequiv as [Hprob_eq Hperm].
-  split.
-  - (* Prove probability equivalence *)
-    intros a.
-    destruct Hsumx as [_ _ Hprobx].
-    destruct Hsumy as [_ _ Hproby].
-    specialize (Hprobx a).
-    specialize (Hproby a).
-    rewrite Hprobx.
-    rewrite Hproby.
-    assert (Permutation lx ly) as Hlx_ly.
-    {   
-      (* First, we'll use Forall2_length to get lengths equal *)
-      assert (length lx = length dx.(pset)) as Hlen_lx. {
-        apply Forall2_length in Hlx.
-        rewrite Hlx.
-        reflexivity.
-      }
-      assert (length ly = length dy.(pset)) as Hlen_ly. {
-        apply Forall2_length in Hly.
-        rewrite Hly.
-        reflexivity.
-      }
-      assert (length lx = length ly) as Hlen_eq. {
-        rewrite Hlen_lx, Hlen_ly.
-        apply Permutation_length.
-        exact Hperm.
-      }
+  (* almost the same as __bind_legal Legal_unique *)
+  intros A B df1 df2 f g l1 l2 ds1 ds2 Hdf1 Hdf2 Hl1 Hl2 Hsum_distr1 Hsum_distr2.
 
-      (* Next, we'll use NoDup_Permutation to prove the permutation *)
-      apply NoDup_Permutation.
-      - (* Prove NoDup lx *)
-        (* This follows from Forall2 with dx.(pset) which has NoDup *)
-        assert (NoDup lx) as Hnodup_lx. {
-          (* We'll prove this by contradiction *)
-          remember dx.(pset) as lpset.
-          remember lx as lrd.
-          assert (Forall2 (fun a '(r, d) => r = dx.(prob) a /\ d ∈ (g a).(distr)) lpset lrd) as Hf2. {
-            subst. exact Hlx.
-          }
-          clear Heqlpset Heqlrd.
-          admit.
-          (* Prove by induction on the Forall2 relation *)
-          (* induction Hf2.
-          - constructor.  (* Empty list case *)
-          - constructor.
-            + (* Prove y ∉ l' *)
-              intro Hin.
-              (* Use Forall2_in_right to get corresponding element in lpset *)
-              apply Forall2_in_right with (x:=x) in IHHf2 as [a' [Ha' [Hr' Hd']]]; [| exact Hin].
-              (* Get the original element's properties *)
-              destruct y as [r d].
-              destruct H as [Hr Hd].
-              (* Show contradiction using NoDup of lpset *)
-              assert (NoDup lpset). {
-                destruct dx.(legal) as [Hnodup _].
-                exact Hnodup.
-              }
-              assert (x = a'). {
-                (* Both x and a' map to same r through prob *)
-                subst r.
-                rewrite Hr' in Hr.
-                (* Use prob properties to show x = a' *)
-                destruct dx.(legal) as [_ [Hprob_ge0 Hprob_valid _]].
-                specialize (Hprob_valid x).
-                specialize (Hprob_valid a').
-                destruct (classic (dx.(prob) x > 0)%R) as [Hpos|Hnpos].
-                - specialize (Hprob_valid Hpos).
-                  assert (In a' lpset). {
-                    apply Forall2_in_left in Hin as [? [? _]].
-                    exact H.
-                  }
-                  apply NoDup_cons_iff in H0.
-                  destruct H0 as [Hnotin _].
-                  assert (x = a' \/ In x l'). {
-                    right. exact Hnotin.
-                  }
-                  tauto.
-                - specialize (Hprob_ge0 x).
-                  nra.
-              }
-              subst a'.
-              (* Now we have x appearing twice in lpset *)
-              apply NoDup_cons_iff in H0.
-              destruct H0 as [Hnotin _].
-              assert (In x lpset). {
-                apply Forall2_in_left in Hin as [? [? _]].
-                exact H.
-              }
-              contradiction.
-            + exact IHHf2. *)
-        }
-        exact Hnodup_lx.
-      - (* Prove NoDup ly *)
-        (* Similar to above *)
-        admit. (* Can be proved using dy's legality *)
-        
-      - (* Prove elements are the same *)
-        intros [r d].
-        (* The key is to show that each (r,d) pair in lx corresponds to 
-          exactly one element in ly through the permutation Hperm *)
-        split; intro Hin.
-        + (* -> direction *)
-          admit.
-        + (* <- direction *)
-          (* Similar to above direction *)
-          admit.
+  pose proof (f.(legal).(Legal_unique) df1 df2 Hdf1 Hdf2) as Hequiv_df1_df2.
+  assert (forall a, ProbMonad.Legal (g a).(distr)) as Hg.
+  {
+    intros.
+    apply (g a).(legal).
+  }
+
+  assert ( (* find intermediate l1'*) (* maybe reused later *)
+    exists l1',
+      Permutation l1 l1' /\
+      Forall2 (fun '(r1, d1) '(r2, d2) => (r1 = r2)%R /\ ProbDistr.equiv d1 d2) l1' l2
+  ) as Hl1'_ex. {
+    remember (fun (a : A) '(r, d) => r = df1.(prob) a /\ d ∈ (g a).(distr)) as rel.
+    remember (fun '(r1, d1) '(r2, d2) => (r1 = r2)%R /\ ProbDistr.equiv d1 d2) as equiv.
+
+    assert (
+      forall (a : A) (rd1 rd2 : (R * Distr B)),
+        rel a rd1
+        -> rel a rd2
+        -> equiv rd1 rd2
+      ) as Hrel_equiv. {
+      intros ? ? ? H1 H2.
+      subst.
+      destruct rd1 as [r1 d1].
+      destruct rd2 as [r2 d2].
+      split.
+      - destruct H1 as [Hr1 _].
+        destruct H2 as [Hr2 _].
+        nra.
+      - destruct H1 as [_ Hd1].
+        destruct H2 as [_ Hd2].
+        specialize ((g a).(legal).(Legal_unique) d1 d2 Hd1 Hd2) as Hequiv.
+        exact Hequiv.
     }
-    apply Permutation_sum_eq.
-    apply Permutation_map.
-    exact Hlx_ly.
-Admitted.
 
+    assert (
+      Forall2 rel df2.(pset) l2        
+    ) as Hl2'. {
+      subst rel.
+      clear Hsum_distr1 Hsum_distr2.
+      induction Hl2 as [| x y lx_tail ly_tail].
+      - constructor.
+      - destruct y as [r d].
+        destruct H as [Hr Hd].
+        constructor.
+        + split.
+          * destruct Hequiv_df1_df2 as [Hprob _].
+            rewrite (Hprob x).
+            exact Hr.
+          * exact Hd.
+        + exact IHHl2.
+    }
+
+    assert (
+      Equivalence equiv
+    ) as Hequiv_equiv. {
+      subst.
+      split.
+      - intros [r d].
+        split; reflexivity.
+      - intros [r1 d1] [r2 d2].
+        intros [Hr1 Hd1].
+        split; symmetry; tauto.
+      - intros [r1 d1] [r2 d2] [r3 d3].
+        intros [Hr12 Hd12] [Hr23 Hd23].
+        split.
+        + subst; reflexivity.
+        + rewrite Hd12.
+          rewrite Hd23.
+          reflexivity. 
+    }
+
+    assert (
+      forall a, exists b, rel a b
+    ) as Hrel_ex. {
+      intros.
+      specialize ((g a).(legal).(Legal_exists)) as [d Hd].
+      exists (df1.(prob) a, d).
+      subst rel.
+      split; [reflexivity | exact Hd].
+    }
+
+    destruct Hequiv_df1_df2 as [_ Hpset_perm].
+
+    specialize (Permutation_Forall2_equiv_list_exists rel equiv df1.(pset) df2.(pset) l1 l2 Hrel_equiv Hrel_ex Hequiv_equiv Hpset_perm Hl1 Hl2') as Hl1'_ex.
+    exact Hl1'_ex.
+  }
+
+  destruct Hl1'_ex as [l1' [Hperm_l1_l1' Hl1'_l2]].
+  specialize (ProbDistr_sum_distr_exists l1') as [ds1' Hsum_distr1'].
+
+  specialize (ProbDistr_sum_distr_equiv_equiv l1' l2 ds1' ds2 Hl1'_l2 Hsum_distr1' Hsum_distr2) as Hequiv1'2. (* key auxiliary lemma *)
+
+  (* difference. we need to retrive ds1, ds1' legality via sum_distr_legal *)
+  specialize (ProbMonad.ProbDistr_sum_distr_legal_precondition_helper_MonadVer f g df1 l1 Hdf1 Hl1) as [Hhelper1a Hhelper1b].
+
+  pose proof (ProbDistr_sum_distr_legal l1 ds1 Hhelper1a Hhelper1b Hsum_distr1) as Hds1_legal.
+
+  specialize (ProbMonad.ProbDistr_sum_distr_legal_precondition_helper_MonadVer f g df2 l2 Hdf2 Hl2) as [Hhelper2a Hhelper2b].
+
+  pose proof (ProbDistr_sum_distr_legal l2 ds2 Hhelper2a Hhelper2b Hsum_distr2) as Hds2_legal.
+
+  symmetry in Hequiv1'2.
+  specialize (ProbDistr_equiv_legal_congr ds2 ds1' Hequiv1'2 Hds2_legal) as Hds1'_legal.
+
+  destruct Hds1_legal as [_ _ Hds1_legal _].
+  destruct Hds1'_legal as [_ _ Hds1'_legal _].
+
+  specialize (ProbDistr_sum_distr_permutation_equiv l1 l1' ds1 ds1' Hperm_l1_l1' Hsum_distr1 Hsum_distr1' Hds1_legal Hds1'_legal) as Hequiv11'. (* key auxiliary lemma *)
+
+  rewrite Hequiv11'.
+  rewrite Hequiv1'2.
+  reflexivity.
+Qed.
 (*
   Name: Forall2_pointwise_mono_aux
   Property: Auxiliary Theorem
@@ -3291,13 +3342,7 @@ Proof.
               -- exact Hlxy.
             +++ exact Hsum_xx.
             +++ exact Hsum_xy.
-          ++ apply (bind_congr_aux A dx dy gy lxy lyy dxy dyy).
-            +++ pose proof (fx.(legal).(Legal_unique) dx dy Hdx Hdy_fx) as H_equiv.
-                exact H_equiv.
-            +++ exact Hlxy.
-            +++ exact Hlyy.
-            +++ exact Hsum_xy.
-            +++ exact Hsum_yy.
+          ++ apply (bind_congr_aux dx dy fx gy lxy lyy dxy dyy); assumption.
   }
 
   exists dxx, dyy.
