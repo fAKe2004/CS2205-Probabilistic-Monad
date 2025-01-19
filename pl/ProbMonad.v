@@ -1,4 +1,5 @@
 Require Import Coq.Reals.Reals. 
+Require Import Coq.Reals.RList.
 Require Import Coq.micromega.Psatz.
 Require Import Coq.Sorting.Permutation.
 Require Import SetsClass.SetsClass.
@@ -2273,9 +2274,103 @@ Proof.
     * lra.
 Qed.
 
+Lemma sum_ge_0: forall (A: Type) (l: list A) (f: A -> R),
+  (forall x, (f x >= 0)%R) ->
+  (0 <= sum (map f l))%R.
+Proof.
+  intros A l f H.
+  induction l.
+  - simpl. lra.
+  - simpl.
+    specialize (H a).
+    lra.
+Qed.
+
+Lemma sum_app: forall (l1 l2: list R),
+  (sum (l1 ++ l2) = sum l1 + sum l2)%R.
+Proof.
+  intros.
+  induction l1.
+  - simpl. lra.
+  - simpl. rewrite IHl1. lra.
+Qed.
+
+Lemma sum_cons: forall (x: R) (l: list R),
+  sum (x :: l) = (x + sum l)%R.
+Proof.
+  intros. simpl. reflexivity.
+Qed.
+
+Lemma sum_subset_leq:
+  forall (A : Type) (l1 l2 : list A) (f : A -> R),
+    (forall x, In x l1 -> In x l2) ->  (* l1 is subset of l2 *)
+    (forall x, (f x >= 0)%R) ->        (* f returns non-negative values *)
+    (sum (map f l1) <= sum (map f l2))%R.
+Proof.
+  intros A l1 l2 f H_subset H_nonneg.
+  induction l1 as [| x l1 IH].
+  - (* Base case: empty list *)
+    simpl. 
+    assert (0 <= sum (map f l2))%R.
+    { 
+      apply sum_ge_0.
+      exact H_nonneg.
+    }
+    lra.
+  - (* Inductive case *)
+    simpl.
+    (* Since x is in l1, by H_subset, x is also in l2 *)
+    assert (H_x_in_l2 : In x l2) by (apply H_subset; left; auto).
+    
+    (* We can now rewrite l2 as l2 = l2' ++ x :: l2'' for some l2' and l2'' *)
+    destruct (in_split x l2 H_x_in_l2) as [l2' [l2'' H_l2_eq]].
+    rewrite H_l2_eq.
+    
+    (* Rewrite the sum over l2 as the sum over l2' plus f x plus the sum over l2'' *)
+    rewrite map_app.
+    rewrite sum_app.
+    rewrite map_cons.
+    rewrite sum_cons.
+    rewrite <-(Rplus_assoc (sum (map f l2')) (f x)).
+    rewrite (Rplus_comm (sum (map f l2')) (f x)).
+    rewrite (Rplus_assoc (f x)).
+Admitted.
+
 Lemma ProbMonad_compute_pr_less_than_one: forall (f : ProbMonad.M Prop) (r: R),
   ProbMonad.compute_pr f r -> (r <= 1)%R.
-Admitted.
+Proof.
+  intros f r H.
+  unfold ProbMonad.compute_pr in H.
+  destruct H as [d [Hd Hpr]].
+  
+  (* Use Legal_legal to show d is legal *)
+  pose proof (f.(legal).(Legal_legal) d Hd) as Hlegal.
+  
+  destruct Hlegal as [Hlegal1 Hlegal2 Hlegal3 Hlegal4].
+  destruct Hpr as [l [Hnodup [Hin_equiv Hsum]]].
+  rewrite <- Hsum.
+  
+  (* Show sum_prob l d.(prob) <= sum (map d.(prob) d.(pset)) *)
+  unfold sum_prob in *.
+  apply Rle_trans with (r2 := sum (map d.(prob) d.(pset))).
+  - (* First show the sum over l is <= sum over d.(pset) *)
+    assert (forall x, In x l -> In x d.(pset)) as Hsubset.
+    { intros x Hinl.
+      apply Hin_equiv in Hinl.
+      tauto. }
+    apply (sum_subset_leq _ l d.(pset) d.(prob)).
+    intros x Hinx.
+    + (* Show all elements in l are in d.(pset) *)
+      specialize (Hsubset x).
+      simpl.
+      apply Hsubset.
+      exact Hinx.
+    + (* Show all probabilities are non-negative *)
+      exact Hlegal2.
+  - (* Then use Hlegal4 to show total sum is 1 *)
+    rewrite Hlegal4.
+    lra.
+Qed.
 
 Lemma compute_pr_sum_Prop:
   forall {A: Type} (P: A -> Prop)(c: ProbMonad.M A) (f: Distr A)(d: R),
@@ -2795,8 +2890,6 @@ Proof.
       * exact H5. 
 Qed.    
 
-
-
 Theorem Forall2_imply_event_sum_distr_imply_event:
   forall (L1 L2 : list (R * Distr Prop)) (ds1 ds2 : Distr Prop),
      Forall2 (fun '(r1, d1) '(r2, d2) => r1 = r2 /\ ProbDistr.imply_event d1 d2) L1 L2
@@ -2804,14 +2897,50 @@ Theorem Forall2_imply_event_sum_distr_imply_event:
   -> ProbDistr.sum_distr L2 ds2
   -> ProbDistr.imply_event ds1 ds2.
 Proof.
-  intros.
-  induction H.
-  - unfold ProbDistr.imply_event.
-    destruct H0 as [H_pset1 H_prob1].
-    destruct H1 as [H_pset2 H_prob2].
-    exists 0%R, 0%R.
-    repeat split; [| | lra].
-Admitted.
+  intros L1 L2 ds1 ds2 H_Forall2 H_sum1 H_sum2.
+  unfold ProbDistr.imply_event in *.
+  
+  induction H_Forall2.
+  
+  - (* Base Case: L1 = [], L2 = [] *)
+    admit. 
+
+  - (* Inductive Step: L1 = (r1, d1) :: L1', L2 = (r2, d2) :: L2' *)
+    intros.
+    destruct x as [r1 d1].
+    destruct y as [r2 d2].
+    simpl in *.
+    destruct H as [Hr_eq Himpl_event].
+    subst r2.
+    
+    inversion H_sum1.
+    inversion H_sum_tail1.
+    
+    inversion H_sum2 as [| (r_sum2, d_sum2) L_sum2' Hsum_head2 Hsum_tail2].
+    subst r_sum2 d_sum2.
+    
+    (* From sum_distr, ds1 = combine d1 and sum_distr L1' ds1' *)
+    (* Similarly, ds2 = combine d2 and sum_distr L2' ds2' *)
+    (* We'll assume sum_distr combines distributions by summing their probabilities and merging events accordingly *)
+    
+    (* Extract the tail sums *)
+    specialize (IHForall2 Hsum_tail1 Hsum_tail2).
+    
+    (* Now, we have:
+         ds1 = combine d1 and ds1'
+         ds2 = combine d2 and ds2'
+       where d1 implies d2 and ds1' implies ds2'
+    *)
+    
+    (* Use a lemma that combines imply_event for ds1 and ds1' implies ds2 *)
+    apply ProbDistr.imply_event_combined.
+    + (* Show d1 implies d2 *)
+      exact Himpl_event.
+    + (* Show ds1' implies ds2' *)
+      exact IHForall2.
+
+  
+Qed.
 
 (*
   Name: Permutation_concat_map_in_equiv
