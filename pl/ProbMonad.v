@@ -6,6 +6,7 @@ Require Import SetsClass.SetsClass.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import Coq.Logic.Classical_Prop.
+Require Import Coq.Logic.FunctionalExtensionality.
 Import SetsNotation.
 Local Open Scope sets.
 Local Open Scope list.
@@ -3204,6 +3205,26 @@ Proof.
   rewrite Hequiv1'2.
   reflexivity.
 Qed.
+
+Lemma Forall2_imply_congr:
+  forall {A B: Type} (l1: list A) (l2: list B) (P Q: A -> B -> Prop) ,
+    Forall2 P l1 l2 ->
+    (forall a b, 
+      In a l1 -> In b l2 -> P a b -> Q a b) ->
+    Forall2 Q l1 l2.
+Proof.
+  intros A B l1 l2  P Q H_forall2 H_imply.
+  induction H_forall2.
+  - constructor.
+  - constructor.
+    + apply H_imply.
+      1,2,3:simpl; auto.
+    + apply IHH_forall2.
+      intros.
+      apply H_imply.
+      1,2,3: simpl; auto.
+Qed.
+
 (*
   Name: Forall2_pointwise_mono_aux
   Property: Auxiliary Theorem
@@ -3592,6 +3613,75 @@ Qed.
 
 (* Admitted. * Level 2 *)
 
+(**
+Auxiliary Lemma :
+  construt a list of distribution that satisfies congruence with distribution
+*)
+Lemma bind_distr_exists:
+  forall (A B C: Type) 
+        (dstr_a: Distr A) 
+        (g: A -> ProbMonad.M B)
+        (h: B -> ProbMonad.M C),
+  exists lac: list (R * Distr C),
+        Forall2 (fun a '(r, d) => r = dstr_a.(prob) a /\ exists ga: Distr B, (g a).(distr) ga /\
+                  exists l_sum_to_bc: list (R * Distr C),
+                    (Forall2 (fun b '(r, d) => 
+                                r = ga.(prob) b /\ d ∈ (h b).(distr)) 
+                      ga.(pset) l_sum_to_bc) /\
+                      ProbDistr.sum_distr l_sum_to_bc d)
+        dstr_a.(pset) lac.
+Admitted.
+
+(**
+Auxiliary Lemma:
+ 
+construct a satisfied distr and prove its bind satisfies the equivlance with prob
+*)
+Lemma in_pset_equiv_with_prob:
+  forall (A B C: Type)
+         (dstr_c: Distr C)
+         (lst_ac: list (R * Distr C))
+         (dstr_a: Distr A)
+         (g: A -> ProbMonad.M B)
+         (h: B -> ProbMonad.M C),
+  Forall2 (fun a '(r, d) => r = dstr_a.(prob) a /\ 
+        exists ga: Distr B, (g a).(distr) ga /\ 
+        exists l_sum_to_bc: list (R * Distr C),
+        (Forall2 (fun b '(r, d) => r = ga.(prob) b /\ d ∈ (h b).(distr)) ga.(pset) l_sum_to_bc) /\ ProbDistr.sum_distr l_sum_to_bc d) dstr_a.(pset) lst_ac ->
+  (forall a: C,
+     In a dstr_c.(pset) <-> In a (concat (map (fun '(_, d) => d.(pset)) lst_ac))) /\
+  (forall a: C,
+     dstr_c.(prob) a = sum (map (fun '(r, d) => (r * d.(prob) a)%R) lst_ac)).
+Admitted.
+
+(** 
+Auxliary Lemma:
+  bind congruence with distribution
+*)
+Lemma bind_congr_distr_aux:
+  forall (A B C: Type)
+         (f: ProbMonad.M A)
+         (g: A -> ProbMonad.M B)
+         (h: B -> ProbMonad.M C)
+         (dstr_c: Distr C)
+         (dstr_a: Distr A)
+         (lst_ac: list (R * Distr C))
+         (dstr_b: Distr B)
+         (lbc: list (R * Distr C)),
+  dstr_a ∈ f.(distr) ->
+  Forall2 (fun a '(r, d) =>
+             r = dstr_a.(prob) a /\
+             d ∈ (bind (g a) h).(distr))
+          dstr_a.(pset) lst_ac ->
+  ProbDistr.sum_distr lst_ac dstr_c ->
+  dstr_b ∈ (ProbMonad.bind f g).(distr) ->
+  Forall2 (fun b '(r, d) =>
+             r = dstr_b.(prob) b /\
+             d ∈ (h b).(distr))
+          dstr_b.(pset) lbc ->
+  ProbDistr.sum_distr lbc dstr_c.
+Admitted.
+
 Lemma bind_assoc:
   forall (A B C: Type)
          (f: ProbMonad.M A)
@@ -3603,9 +3693,65 @@ Proof.
   intros.
   unfold ProbMonad.equiv.
   sets_unfold.
-  intros d.
+  intros dstr_c.
   split.
-Admitted. (** Level 3 *)
+  + intros.
+    destruct H as [dstr_b [lst_c [[dstr_a [lst_b [H_dstr_a [H_forall2_atob H_sum_distr_b]]]] [H_forall2_btoc H_sum_distr_c]]]].
+    pose proof bind_distr_exists _ _ _ dstr_a g h as H_distr_exists.
+    destruct H_distr_exists as [lst_ac H_forall2_atoc].
+    exists dstr_a, lst_ac.
+    split.
+    2: split.
+    - auto.
+    - pose proof Forall2_imply_congr dstr_a.(pset) lst_ac as H_forall2_imply.
+      eapply H_forall2_imply.
+      * apply H_forall2_atoc.
+      * intros a [r d].
+        intros H_in_dstr_a H_in_lst_ac [H_eq H_exists].
+        destruct H_exists as [ga [Hga [l_sum_to_bc [H_forall2_bc H_sum_bc]]]].
+        split; auto.
+        sets_unfold.
+        exists ga, l_sum_to_bc.
+        split; auto.
+    - destruct H_sum_distr_c as [H_sum_lbdc _].
+      destruct H_sum_distr_b as [H_sum_ladb _]. 
+      pose proof in_pset_equiv_with_prob _ _ _ dstr_c lst_ac dstr_a g h H_forall2_atoc as [H_pset_equiv H_prob_equiv].
+      split.
+      ++ apply H_sum_lbdc.
+      ++ apply H_pset_equiv.
+      ++ exact H_prob_equiv.
+  + intros H.
+    destruct H as [dstr_a [lst_ac [H_distr_a [Hlac H_sum_distr_ladc]]]].
+    pose proof (ProbMonad.bind f g).(legal).(Legal_exists) as [dstr_b Hdb].
+    assert (
+      exists lbc: list (R * Distr C),
+        Forall2 (fun b '(r, d) => 
+                  r = dstr_b.(prob) b /\ 
+                  (h b).(distr) d)
+        dstr_b.(pset) lbc
+    ). {
+      induction dstr_b.(pset) as [|b l].
+      - exists nil.
+        repeat constructor.
+      - destruct IHl as [lbc Hlbc].
+        pose proof (h b).(legal).(Legal_exists) as [hb Hhb].
+        exists ((dstr_b.(prob) b, hb) :: lbc).
+        constructor.
+        * sets_unfold in Hhb.
+          split; auto.
+        * apply Hlbc.
+    }
+    destruct H as [lbc Hlbc].
+    exists dstr_b, lbc.
+    split.
+    2:auto.
+    - apply Hdb.
+    - split.
+      apply Hlbc.
+      pose proof bind_congr_distr_aux _ _ _ f g h dstr_c dstr_a lst_ac dstr_b lbc H_distr_a Hlac H_sum_distr_ladc Hdb Hlbc.
+      apply H.
+Qed.
+(**Admitted.  Level 3 *)
 
 Lemma bind_assoc_event:
   forall (A B: Type)
